@@ -52,6 +52,7 @@ if (!process.send) {
                     nameservers: scam.nameservers,
                     status: scam.status,
                     reporter: scam.reporter,
+                    severity: scam.severity,
                     coin: scam.coin,
                     statusCode: scam.statusCode,
                     updated: Date.now()
