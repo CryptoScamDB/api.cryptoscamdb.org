@@ -1,4 +1,4 @@
-import { version } from '../../package.json';
+import { name, version } from '../../package.json';
 import * as express from 'express';
 import * as db from './db';
 import generateAbuseReport from './abusereport';
@@ -16,321 +16,28 @@ const router = express.Router();
 
 /* Send CSDB-Version header */
 router.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
     res.header('CSDB-Version', version);
     next();
 });
 
-/* Homepage */
-router.get('/(/|index.html)?', (req, res) => res.render('index'));
+router.get('/', (req, res) => res.send(name + ' ' + version));
 
-/* FAQ page */
-router.get('/faq/', (req, res) => res.render('faq'));
-
-/* API documentation page */
-router.get('/api/', (req, res) => res.render('api'));
-
-/* Report pages */
-router.get('/report/', (req, res) => res.render('report'));
-
-router.get('/report/domain/:domain?', (req, res) =>
-    res.render('report', {
-        domain: req.params.domain || true
-    })
-);
-
-router.get('/report/address/:address?', (req, res) =>
-    res.render('report', {
-        address: req.params.address || true
-    })
-);
-
-/* IP pages */
-router.get('/ip/:ip', async (req, res) => {
-    const entry = db.read();
-    console.log(JSON.stringify(entry.index.ips, null, 2));
-    await res.render('ip', {
-        ip: req.params.ip,
-        isPrivate: isIpPrivate(req.params.ip),
-        related: entry.index.ips[req.params.ip] || []
-    });
-});
-
-/* Address pages */
-router.get('/address/:address', async (req, res) => {
-    const entry = await db.read();
-    if (entry.index.whitelistAddresses[req.params.address]) {
-        res.render('address', {
-            address: req.params.address,
-            related: entry.index.whitelistAddresses[req.params.address],
-            type: 'verified'
-        });
-    } else if (entry.index.addresses[req.params.address]) {
-        res.render('address', {
-            address: req.params.address,
-            related: entry.index.addresses[req.params.address] || [],
-            type: 'scam'
-        });
-    } else {
-        res.render('address', {
-            address: req.params.address,
-            related: entry.index.addresses[req.params.address] || [],
-            type: 'neutral'
-        });
-    }
-});
-
-/* (dev) Add scam page */
-router.get('/add/', (req, res) => {
-    const { NODE_ENV } = process.env;
-    if (NODE_ENV === 'development') {
-        res.render('add');
-    } else {
-        res.send(403).end();
-    }
-});
-
-/* Domain pages */
-router.get('/domain/:url', async (req, res) => {
-    const startTime = Date.now();
-    const { hostname } = url.parse(
-        'http://' + req.params.url.replace('http://', '').replace('https://')
-    );
-    const scamEntry = db.read().scams.find(scam => scam.getHostname() === hostname);
-    const verifiedEntry = db
-        .read()
-        .verified.find(verified => url.parse(verified.url).hostname === hostname);
-
-    const urlScan = await getURLScan(hostname);
-    const domainurl = 'https://cryptoscamdb.org/domain/' + hostname;
-    let googleSafeBrowsing;
-    let virusTotal;
-
-    if ((scamEntry || !verifiedEntry) && config.apiKeys.Google_SafeBrowsing) {
-        googleSafeBrowsing = await getGoogleSafeBrowsing(hostname);
-    }
-    if ((scamEntry || !verifiedEntry) && config.apiKeys.VirusTotal) {
-        virusTotal = await getVirusTotal(hostname);
-    }
-
-    if (verifiedEntry) {
-        res.render('domain', {
-            type: 'verified',
-            result: verifiedEntry,
-            domain: hostname,
-            urlScan,
-            metamask: false,
-            googleSafeBrowsing,
-            virusTotal,
-            startTime,
-            dateFormat,
-            domainurl
-        });
-    } else if (scamEntry) {
-        res.render('domain', {
-            type: 'scam',
-            result: scamEntry,
-            domain: hostname,
-            urlScan,
-            metamask: checkForPhishing(hostname),
-            googleSafeBrowsing,
-            virusTotal,
-            startTime,
-            dateFormat,
-            abuseReport: generateAbuseReport(scamEntry),
-            domainurl
-        });
-    } else {
-        res.render('domain', {
-            type: 'neutral',
-            domain: hostname,
-            result: false,
-            urlScan,
-            metamask: checkForPhishing(hostname),
-            googleSafeBrowsing,
-            virusTotal,
-            addresses: [],
-            startTime,
-            domainurl
-        });
-    }
-});
-
-/* Scams index */
-router.get('/scams/:page?/:sorting?/', (req, res) => {
-    const MAX_RESULTS_PER_PAGE = 30;
-    const scamList = [];
-    let scams = [...db.read().scams].reverse();
-    let index = [0, MAX_RESULTS_PER_PAGE];
-
-    if (
-        req.params.page &&
-        req.params.page !== 'all' &&
-        (!isFinite(parseInt(req.params.page, 10)) ||
-            isNaN(parseInt(req.params.page, 10)) ||
-            parseInt(req.params.page, 10) < 1)
-    ) {
-        res.status(404).render('404');
-    } else {
-        if (req.params.sorting === 'oldest') {
-            scams = db.read().scams;
-        } else if (req.params.sorting === 'status') {
-            scams = [...db.read().scams].sort((a, b) =>
-                (a.status || '').localeCompare(b.status || '')
-            );
-        } else if (req.params.sorting === 'category') {
-            scams = [...db.read().scams].sort((a, b) =>
-                (a.category || '').localeCompare(b.category || '')
-            );
-        } else if (req.params.sorting === 'subcategory') {
-            scams = [...db.read().scams].sort((a, b) =>
-                (a.subcategory || '').localeCompare(b.subcategory || '')
-            );
-        } else if (req.params.sorting === 'name') {
-            scams = [...db.read().scams].sort((a, b) =>
-                a.getHostname().localeCompare(b.getHostname())
-            );
-        }
-
-        if (req.params.page === 'all') {
-            index = [0, scams.length - 1];
-        } else if (req.params.page) {
-            index = [
-                (req.params.page - 1) * MAX_RESULTS_PER_PAGE,
-                req.params.page * MAX_RESULTS_PER_PAGE
-            ];
-        }
-
-        for (let i = index[0]; i <= index[1]; i++) {
-            if (scams.hasOwnProperty(i) === false) {
-                continue;
-            }
-            scamList.push(scams[i]);
-        }
-
-        res.render('scams', {
-            page: req.params.page,
-            sorting: req.params.sorting,
-            total: scams.length.toLocaleString('en-US'),
-            active: Object.keys(
-                scams.filter(scam => scam.status === 'Active')
-            ).length.toLocaleString('en-US'),
-            total_addresses: Object.keys(db.read().index.addresses).length.toLocaleString('en-US'),
-            inactive: Object.keys(
-                scams.filter(scam => scam.status === 'Inactive')
-            ).length.toLocaleString('en-US'),
-            scams: scamList,
-            MAX_RESULTS_PER_PAGE,
-            scamsLength: scams.length
-        });
-    }
-});
-
-/* Coin pages */
-router.get('/coin/:coin/:page?/:sorting?/', (req, res) => {
-    const MAX_RESULTS_PER_PAGE = 30;
-    const scamList = [];
-    let scams = [...db.read().scams.filter(scam => scam.coin === req.params.coin)].reverse();
-    let index = [0, MAX_RESULTS_PER_PAGE];
-
-    if (
-        req.params.page &&
-        req.params.page !== 'all' &&
-        (!isFinite(parseInt(req.params.page, 10)) ||
-            isNaN(parseInt(req.params.page, 10)) ||
-            parseInt(req.params.page, 10) < 1)
-    ) {
-        res.status(404).render('404');
-    } else {
-        if (req.params.sorting === 'oldest') {
-            scams = db.read().scams.filter(scam => scam.coin === req.params.coin);
-        } else if (req.params.sorting === 'status') {
-            scams = [...db.read().scams.filter(scam => scam.coin === req.params.coin)].sort(
-                (a, b) => (a.status || '').localeCompare(b.status || '')
-            );
-        } else if (req.params.sorting === 'category') {
-            scams = [...db.read().scams.filter(scam => scam.coin === req.params.coin)].sort(
-                (a, b) => (a.category || '').localeCompare(b.category || '')
-            );
-        } else if (req.params.sorting === 'subcategory') {
-            scams = [...db.read().scams.filter(scam => scam.coin === req.params.coin)].sort(
-                (a, b) => (a.subcategory || '').localeCompare(b.subcategory || '')
-            );
-        } else if (req.params.sorting === 'name') {
-            scams = [...db.read().scams.filter(scam => scam.coin === req.params.coin)].sort(
-                (a, b) => a.getHostname().localeCompare(b.getHostname())
-            );
-        }
-
-        if (req.params.page === 'all') {
-            index = [0, scams.length - 1];
-        } else if (req.params.page) {
-            index = [
-                (req.params.page - 1) * MAX_RESULTS_PER_PAGE,
-                req.params.page * MAX_RESULTS_PER_PAGE
-            ];
-        }
-
-        for (let i = index[0]; i <= index[1]; i++) {
-            if (scams.hasOwnProperty(i) === false) {
-                continue;
-            }
-            scamList.push(scams[i]);
-        }
-
-        res.render('coin', {
-            coin: req.params.coin,
-            page: req.params.page,
-            sorting: req.params.sorting,
-            total: scams.length.toLocaleString('en-US'),
-            active: Object.keys(
-                scams.filter(scam => scam.status === 'Active')
-            ).length.toLocaleString('en-US'),
-            total_addresses: Object.keys(db.read().index.addresses)
-                .filter(address =>
-                    db.read().index.addresses[address].some(scam => scam.coin === req.params.coin)
-                )
-                .length.toLocaleString('en-US'),
-            inactive: Object.keys(
-                scams.filter(scam => scam.status === 'Inactive')
-            ).length.toLocaleString('en-US'),
-            scams: scamList,
-            MAX_RESULTS_PER_PAGE,
-            scamsLength: scams.length
-        });
-    }
-});
-
-/* Verified pages */
-router.get('/verified/', (req, res) =>
-    res.render('verified', { featured: db.read().index.featured })
-);
-
-/* RSS */
-router.get('/rss/', (req, res) => res.render('rss', { scams: db.read().scams }));
-
-/* API middleware */
-router.use('/api/:type?/:domain?/', (req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    next();
-});
-
-router.get('/api/v1/scams', (req, res) => res.json({ success: true, result: db.read().scams }));
-router.get('/api/v1/addresses', (req, res) =>
+router.get('/v1/scams', (req, res) => res.json({ success: true, result: db.read().scams }));
+router.get('/v1/addresses', (req, res) =>
     res.json({ success: true, result: db.read().index.addresses })
 );
-router.get('/api/v1/ips', (req, res) => res.json({ success: true, result: db.read().index.ips }));
-router.get('/api/v1/verified', (req, res) =>
-    res.json({ success: true, result: db.read().verified })
-);
-router.get('/api/v1/inactives', (req, res) =>
+router.get('/v1/ips', (req, res) => res.json({ success: true, result: db.read().index.ips }));
+router.get('/v1/verified', (req, res) => res.json({ success: true, result: db.read().verified }));
+router.get('/v1/inactives', (req, res) =>
     res.json({ success: true, result: db.read().index.inactives })
 );
-router.get('/api/v1/actives', (req, res) =>
+router.get('/v1/actives', (req, res) =>
     res.json({ success: true, result: db.read().index.actives })
 );
-router.get('/api/v1/blacklist', (req, res) => res.json(db.read().index.blacklist));
-router.get('/api/v1/whitelist', (req, res) => res.json(db.read().index.whitelist));
-router.get('/api/v1/abusereport/:domain', (req, res) => {
+router.get('/v1/blacklist', (req, res) => res.json(db.read().index.blacklist));
+router.get('/v1/whitelist', (req, res) => res.json(db.read().index.whitelist));
+router.get('/v1/abusereport/:domain', (req, res) => {
     const result = db
         .read()
         .scams.find(
@@ -344,7 +51,7 @@ router.get('/api/v1/abusereport/:domain', (req, res) => {
         res.json({ success: false, message: "URL wasn't found" });
     }
 });
-router.get('/api/v1/check/:search', (req, res) => {
+router.get('/v1/check/:search', (req, res) => {
     if (/^0x?[0-9A-Fa-f]{40,42}$/.test(req.params.search)) {
         /* Searched for an ethereum address */
         const whitelistAddress = Object.keys(db.read().index.whitelistAddresses).find(
@@ -450,7 +157,7 @@ router.get('/api/v1/check/:search', (req, res) => {
 });
 
 /* Incoming user reports */
-router.post('/api/v1/report/', async (req, res) => {
+router.post('/v1/report/', async (req, res) => {
     if (
         config.apiKeys.Google_Captcha &&
         config.apiKeys.Slack_Webhook &&
@@ -484,7 +191,7 @@ router.post('/api/v1/report/', async (req, res) => {
 });
 
 /* Redirect old API requests */
-router.get('/api/:all*?', (req, res) => res.redirect('/api/v1/' + req.params.all));
+router.get('/:all*?', (req, res) => res.redirect('/v1/' + req.params.all));
 
 /* Incoming Github webhook attempt */
 router.post('/update/', (req, res) => {
@@ -494,8 +201,5 @@ router.post('/update/', (req, res) => {
     req.on('data', chunk => (body += chunk));
     req.on('end', () => github.webhook(req, res, body));
 });
-
-/* Safe redirect pages */
-router.get('/redirect/:url', (req, res) => res.render('redirect', { url: req.params.url }));
 
 export default router;

@@ -52,51 +52,8 @@ export const serve = async (electronApp?: any): Promise<void> => {
     app.use(helmet());
     app.use(helmet.referrerPolicy());
 
-    /* Set EJS config */
-    app.set('view engine', 'ejs');
-    app.set('views', path.join(__dirname, 'views/pages'));
-    app.locals.environment = process.env.NODE_ENV;
-    app.locals.announcement = config.announcement;
-    app.locals.hasSlackWebhook = typeof config.apiKeys.Slack_Webhook === 'string';
-
     /* Compress pages */
     app.use(require('compression')());
-
-    /* Serve static content*/
-    app.use(express.static(path.join(__dirname, 'views/static')));
-
-    /* Seperately re-serve various other brand logos to flatten nested paths */
-    app.use('/assets', express.static(path.join(__dirname, 'views/static/assets/coins')));
-    app.use('/assets', express.static(path.join(__dirname, 'views/static/assets/exchanges')));
-    app.use('/assets', express.static(path.join(__dirname, 'views/static/assets/explorers')));
-    app.use('/assets', express.static(path.join(__dirname, 'views/static/assets/wallets')));
-    app.use('/assets', express.static(path.join(__dirname, 'views/static/assets/favicon')));
-    app.use('/assets', express.static(path.join(__dirname, 'views/static/assets/branding')));
-
-    /* Configuration middleware */
-    app.use(async (req, res, next) => {
-        const { NODE_ENV } = process.env;
-        if (!config.manual && req.path !== '/config/' && NODE_ENV === 'development') {
-            res.render('config', { production: false, done: false });
-        } else if (!config.manual && req.path !== '/config/' && NODE_ENV === 'production') {
-            res.render('config', { production: true, done: false });
-        } else if (
-            req.path === '/config' &&
-            (req.method !== 'POST' || !req.body || config.manual)
-        ) {
-            res.status(403).end();
-        } else if (req.path === '/config/' && req.method === 'POST' && !config.manual) {
-            await writeConfig(req.body);
-            if (electronApp) {
-                electronApp.relaunch();
-                electronApp.exit();
-            } else {
-                res.render('config', { production: false, done: true });
-            }
-        } else {
-            next();
-        }
-    });
 
     /* Serve all other routes (see src/utils/router.js) */
     app.use(router);
