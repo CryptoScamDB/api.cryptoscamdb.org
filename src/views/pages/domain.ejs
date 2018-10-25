@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<% include ../partials/header %>
+<link rel="stylesheet" href="/css/domain.css">
+</head>
+
+<body class="domain-container-grid">
+
+    <div class="navbar-container-grid">
+      <% include ../partials/navbar %>
+    </div>
+
+    <div class="content-container-grid">
+        <div class="domain-content-grid">
+
+            <div class="header-content">
+                <div class=""><h1><%= domain %></h1></div>
+                <% include ../partials/sharing %>
+            </div>
+
+            <div class="right-content">
+                <div id="" class="hide">
+                    <i class=""></i>
+                    <div class="">
+                        Share
+                    </div>
+                </div>
+                <% if(typeof abuseReport !== "undefined") { %>
+                <div id="abusemodal" class="hide">
+                    <i class=""></i>
+                    <div class="">
+                        Abuse Report
+                    </div>
+                    <div class="">
+                        <div class="">
+                            <div class="">
+                                <textarea id="abuse"><%= abuseReport %></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="">
+                        <div class="">
+                            <i class=""></i> Cancel
+                        </div>
+                        <div onclick="copyabuse()" class="">
+                            <i class=""></i> Copy
+                        </div>
+                    </div>
+                </div>
+                <% } %>
+                <div class="">
+                    <div id="actions" class="">
+                        <% if(typeof abuseReport !== "undefined") { %>
+                        <button id="" class="domain-page"><i class=""></i> Abuse Report</button>
+                        <% } %>
+                        
+                        <a id="" target="_blank" href="http://web.archive.org/web/*/<%= result.url %>" class="domain-page">
+                          <button class="button-link"  class=""><i class=""></i> Archive</button>
+                        </a>
+                        
+                        <a id="" target="_blank" href="https://github.com/CryptoScamDB/blacklist/tree/master/data" class="domain-page">
+                          <button class="button-link" class="">
+                            <i class=""></i> Improve
+                          </button>
+                        </a>
+                    </div>
+                </div>
+                
+            </div>
+
+            <div class="right-bottom-content">
+              <% include ../partials/safety-tips %>
+            </div>
+
+            <div class="left-content">
+                <% if(type == "neutral") { %>
+                <div class="neutral-domain-msg"><i class=""></i> <div class="domain-msg-text">This domain has not yet been classified on EtherScamDB </div></div>
+                <% } else if(type == "scam") { %>
+                <div class="malicious-domain-msg"><i class=""></i> <div class="domain-msg-text">Warning: This is a likely a malicious domain. </div></div>
+                <% } else if(type == "verified") { %>
+                <div class="verified-domain-msg"><i class=""></i> <div class="domain-msg-text">This is a verified domain. </div></div>
+                <% } %>
+                <% if(type == "scam" && result && result.url) { %>
+                <b>URL</b>: <a id="url" target="_blank" href="/redirect/<%= encodeURIComponent(result.url) %>"><%= result.url %></a><BR>
+                <% } %>
+                <% if(result && result.category && result.subcategory) { %>
+                <b>Category</b>: <%= result.category %> - <%= result.subcategory %><BR>
+                <% } else if(result && result.category) { %>
+                <b>Category</b>: <%= result.category %><BR>
+                <% } %>
+                <% if(result && result.description) { %>
+                <b>Description</b>: <%= result.description %><BR>
+                <% } %>
+                <% if(result && result.status) { %>
+                <b>Status</b>: <span class="class_<%= result.status.toLowerCase() %>"><%= result.status %></span><BR>
+                <% } %>
+                <% if(result && result.ip) { %>
+                <b>IP</b>: <a href="/ip/<%= result.ip %>"><%= result.ip %></a><BR>
+                <% } %>
+                <br>
+                <% if(typeof metamask !== "undefined") {
+                    let color;
+                    if(type == "neutral" && !metamask) color = "orange";
+                    else if(type == "neutral" && metamask) color = "red";
+                    else if(type == "neutral" && !metamask) color = "green";
+                    else if(type == "scam" && !metamask) color = "red";
+                    else if(type == "scam" && metamask) color = "green";%>
+                    <b>MetaMask Status:</b>
+                    <% if(color !== "undefined") { %>
+                      <% color = "orange" %>
+                      <span style="color: <%= color %>">
+                            <% if(metamask) { %>
+                              Blocked
+                            <% } else { %>
+                              Not yet blocked
+                            <% } %>
+                        </span><br>
+                    <% } else if(color == "undefined") { %>
+                        <% if(metamask) { %>
+                            Blocked
+                        <% } else { %>
+                            Not yet blocked
+                        <% } %>
+                        </span><br>
+                    <% } %>
+                <% } %>
+                <% if(googleSafeBrowsing !== undefined) { %>
+                    <% if(googleSafeBrowsing === false) { %>
+                    <b>Google Safe Browsing Status</b>: <span class="red"> Not Blocked Yet</span> <a target="_blank" href="https://safebrowsing.google.com/safebrowsing/report_phish/"><i class=""></i></a><br>
+                    <% } else { %>
+                    <b>Google Safe Browsing Status</b>: <span class="green">Blocked for <%= googleSafeBrowsing.threatType %></span><br>
+                    <% } %>
+                <% } %>
+                        
+                <% if(virusTotal !== undefined) { %>
+                    <% if(virusTotal.positives == 0) { %>
+                    <b>VirusTotal Detections</b>: <span class='green'><%= virusTotal.positives %>/<%= virusTotal.total %></span><br>
+                    <% } else { %>
+                    <b>VirusTotal Detections</b>: <span class='red'><%= virusTotal.positives %>/<%= virusTotal.total %></span><i class=''></i><br>
+                    <% } %>
+                    <% if (virusTotal.scans.Phishtank.result == "clean site") { %>
+                    <b>Phishtank Detected</b>: <span class='green'>Clean Site</span><br>
+                    <% } else if(virusTotal.scans.Phishtank.result == "phishing site") { %>
+                    <b>Phishtank Detected</b>: <span class='red'>Phishing Site</span><br>
+                    <% } else { %>
+                    <b>Phishtank Detected</b>: <span class=''><%= virusTotal.scans.Phishtank.result %></span><br>
+                    <% } %>
+                <% } %>
+                <% if(urlScan && urlScan.results && urlScan.results.length > 0) { %>
+                <b>Urlscan Scan Results</b>: <a href="https://urlscan.io/result/<%= urlScan.results[0].result.replace('https://urlscan.io/api/v1/result/','') %>" target="_blank">Link</a><br>
+                <% } %>
+                        
+                <br>
+                        
+                <% if(result && result.nameservers) { %>
+                <b>Nameservers</b>:
+                <div class="">
+                    <% result.nameservers.forEach(nameserver => { %>
+                    <div class=""><%= nameserver %></div>
+                    <% }); %>
+                </div>
+                <br>
+                <% } %>
+                <% if(result && result.addresses && result.addresses.length > 0) { %>
+                    <b>Related addresses</b>:
+                    <div class="">
+                        <% result.addresses.forEach(address => { %>
+                        <div class="""><a href="/address/<%= address %>"><%= address %></a></div>
+                        <% }); %>
+                    </div>
+                    <br>
+                <% } %>                        
+            </div>
+            <br>
+            <div class="bottom-content">
+                <% if(urlScan && urlScan.results && urlScan.results.length > 0) { %>
+                    <b>Urlscan Screenshot</b>: <br>
+                    <div id="scam-screenshot">
+                        <a href="https://urlscan.io/result/<%= urlScan.results[0].result.replace('https://urlscan.io/api/v1/result/','') %>" target="_blank">
+                            <img class="urlscan-img" src="https://urlscan.io/screenshots/<%= urlScan.results[0].result.replace('https://urlscan.io/api/v1/result/','') %>.png" alt="Screenshot of website" style="width: 100%; height: 80%;">
+                        </a>
+                    </div><br />
+                <% } %>
+                <br />
+                <br>
+                <hr>
+                <br>        
+                <div id="disqus_thread">
+                    <% if(!result) { %>
+                        <p class="built">This page was built in <b><%= Date.now()-startTime %></b>ms</p>
+                    <% } else if(result.updated == "0") { %>
+                        <p class="built">This page was built in <b><%= Date.now()-startTime %></b>ms, and never updated</p>
+                    <% } else { %>
+                        <p class="built">This page was built in <b><%= Date.now()-startTime %></b>ms, and last updated at <b><%= dateFormat(result.updated, "UTC:mmm dd yyyy, HH:MM") %> UTC</b></p>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+        
+    <div class="footer-container-grid">
+        <% include ../partials/footer %>
+    </div>
+	
+	<script>
+        var disqus_config = function () {
+        this.page.identifier = "<%= ((result || {}).id || domain) %>";
+        };
+        (function() {
+        var d = document, s = d.createElement('script');
+        s.src = 'https://ethereum-scam-database.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	<script src="/js/domain.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,36 @@
+.ui.bulleted.list {
+  margin-top: 4px;
+  margin-bottom: 0;
+}
+
+.address-container {
+    display: grid;
+    grid-template-columns: [left-buffer] 10% [page-content] 80% [right-buffer] 10%;
+    grid-template-rows: [navbar] auto [content] auto [footer] auto;
+}
+  
+.nav-container{
+    grid-column: left-buffer / -1;
+    grid-row-start: navbar;
+}
+  
+.content-container {
+    grid-column-start: page-content;
+    grid-row-start: content;
+}
+  
+.footer-container {
+    grid-column: left-buffer / -1;
+    grid-row-start: footer;
+    margin-top: 2%;
+}
+
+.flex-cent {
+      display: flex;
+      align-items: center;
+}
+
+a {
+    text-decoration: none;
+    color: #4183c4;
+}

@@ -1,0 +1,43 @@
+<div id="saftey-tips">
+  <strong>Safety Tips:</strong>
+  <ul>
+      <!-- Category specific tips (phishing/scamming -->
+      <% if(result.category) {
+        switch(result.category.toLowerCase()) {
+          case 'scamming' : %>
+              <li>Be careful of the links you click - <a href="https://medium.com/mycrypto/you-need-to-stop-trusting-links-10271f300ed2" target="_blank">You need to stop trusting links</a>!</li>
+              <li>Read about <a href="https://medium.com/mycrypto/following-an-ethereum-phishing-scam-down-the-rabbit-hole-9790484c3431" target="_blank">scamming techniques and how to stay safer</a>.</li>
+              <% break;
+          case 'phishing' : %>
+              <li>Install <a href="https://github.com/409H/EtherAddressLookup#installations" target="_blank">EtherAddressLookup</a> browser extension to warn you of known phishing/scamming sites.</li>
+              <% break;
+        }
+      }
+      %>
+
+      <!-- Subcategory specific tips -->
+      <% if(result.category) {
+        switch(result.subcategory.toLowerCase()) {
+          case 'hitbtc' :
+          case 'coinbase' :
+          case 'gemini' :
+          case 'bittrex' :
+          case 'binance' :
+          case 'kraken' : %>
+              <li>Read about exchange phishing kits: <a href="https://medium.com/mycrypto/dissecting-a-hitbtc-phishing-site-8e631a6c29a3" target="_blank">Dissecting a HitBTC phishing site</a> and <a href="https://medium.com/mycrypto/dissecting-some-of-the-latest-cryptocurrency-exchange-phishkits-a2ed47b8930c" target="_blank">Dissecting some more exchange kits</a>.</li>
+              <% break;
+          case 'mycrypto' : %>
+              <li><a href="https://download.mycrypto.com/" target="_blank">Download MyCrypto</a> to use locally - <a href="https://medium.com/mycrypto/mycrypto-launches-desktop-applications-w-hardware-wallet-support-efac86c962a8" target="_blank">Read more</a>.</li>
+              <li>Refrain from using your private keys online: <a href="https://medium.com/mycrypto/a-safer-mycrypto-79d65196e7d8" target="_blank">A Safer MyCrypto</a>.</li>
+              <li>Read MyCrypto <a href="https://support.mycrypto.com/security/" target="_blank">security guides</a>.</li>
+              <% break;
+          case 'myetherwallet' : %>
+              <li>Run MyEtherWallet offline using <a href="https://kb.myetherwallet.com/offline/running-myetherwallet-locally.html" target="_blank">this guide on their knowledgebase</a>.</li>
+              <% break;
+        }
+      }
+      %>
+
+      <li>Use a hardware wallet such as a <a href="https://www.ledgerwallet.com/r/1985?path=/products/">Ledger Nano S</a> or a <a href="https://shop.trezor.io/?a=mycrypto.com" target="_blank">Trezor</a> or <a href="https://keepkey.go2cloud.org/aff_c?offer_id=1&aff_id=4086" target="_blank">Keepkey</a>.</li>
+  </ul>
+</div>

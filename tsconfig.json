@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src/",
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true,
+    "module": "commonjs",
+    "target": "es2017",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "noEmitOnError": true,
+    "lib": [
+      "es2017"
+    ]
+  },
+  "include": [
+    "./src/**/*"
+  ]
+}

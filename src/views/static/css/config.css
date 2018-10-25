@@ -1,0 +1,16 @@
+.config-grid {
+  display: grid;
+  grid-template-columns: [content] auto;
+  grid-template-rows: [content] auto [footer] 150px;
+  height: 100%;
+}
+
+.footer-grid {
+  grid-row: footer;
+  grid-column: content;
+}
+
+.config-content {
+  grid-row: content;
+  grid-column: content;
+}

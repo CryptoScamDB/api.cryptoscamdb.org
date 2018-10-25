@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+        <% include ../partials/header.ejs %>
+        <link rel="stylesheet" href="/css/ip.css">
+	</head>
+	<body class="ip-container">
+
+        <div class="nav-container">
+            <% include ../partials/navbar.ejs %>
+        </div>
+		
+		<div class="content-container">
+			<% if(isPrivate) { %>
+			<div class="ui floating negative icon message">
+				<i class="exclamation triangle icon"></i>
+				<div class="content">
+					<div class="header">
+						Warning
+					</div>
+					<p>This is a private IP address, and is only used in internal network environments. Any abusive activity you see coming from an internal IP is either coming from within your network itself, or is the result of an error or misconfiguration.</p>
+				</div>
+			</div>
+			<% } %>
+			<h1><%= ip %></h1>
+			<div>
+                <b>Location: </b><span id="location" class="flex-cent">loading...</span><br />
+            </div>
+            <div>
+                <b>AbuseIPDB: </b> <span id="ipabuseip" class="flex-cent"><a href="https://www.abuseipdb.com/check/<%= ip %>" target="_blank" class="flex-cent">View Report</a></span> <br />
+            </div>
+            <div>
+                <b>URLScan: </b> <span id="urlscanip" class="flex-cent"><a href="https://urlscan.io/ip/<%= ip %>" target="_blank" class="flex-cent">View Report</a></span> <br /> <br />
+            </div>
+            <div>
+                <b>Related to the following domains (<%= related.length %>): </b>
+                <% if(related.length > 0) { %>
+                    <div class="ui bulleted list flex-cent">
+                        <% related.forEach(entry => { %>
+                            <div class='item'>
+                                <a href='/domain/<%= entry.name %>/'><%= entry.name %>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <i>(none)</i>
+                <% } %>
+            </div>
+			
+			<div id="map"></div>
+        </div>
+
+        <div class="footer-container">
+            <% include ../partials/footer.ejs %>
+        </div>
+		
+		<script src="/js/ip.js"></script>
+	</body>
+</html>

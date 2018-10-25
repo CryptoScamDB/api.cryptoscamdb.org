@@ -1,0 +1,200 @@
+.navbar {
+    display: grid;
+    width: 100%;
+    height: 75px;
+    font-family: Lato;
+    font-weight: 900;
+    font-size: 14px;
+    font-style: normal;
+    line-height: normal;
+    background-color: #163150;
+    color: #ffffff;
+    grid-column-start: full;
+    grid-row-start: navbar;
+}
+.nav-grid-container {
+    width: 100%;
+    grid-template-columns: [empty-left] 8% [nav-icon] 12% [inner-nav-grid-container] 
+        55% [report-inner-grid] 15% [empty-right] 10%;
+    grid-template-rows: [top-buffer] 10px [icon-size] auto [bot-buffer] 10px;
+}
+
+.inner-nav-grid-container {
+    grid-column-start: inner-nav-grid-container;
+    grid-row-start: icon-size;
+    display: inline-grid;
+    grid-template-columns: [empty] auto [scams] auto [empty-one] 3% [api] 
+        auto [empty-two] auto [faq] auto [empty-three] auto [domain-checker] auto [empty-four] auto;
+    grid-template-rows: [full] auto [full-two] auto;
+}
+
+.report-inner-grid {
+    grid-column-start: report-inner-grid;
+    grid-row-start: icon-size;
+    display: inline-grid;
+    grid-template-columns: [full] auto;
+}
+
+.nav-item {
+    height: 100%;
+}
+
+.nav-icon {
+    display: grid;
+    grid-column: nav-icon;
+    grid-row: top-buffer / -1;
+    width: 100%;
+    height: 100%;
+}
+
+.inner-nav-item {
+    font-family: Lato;
+    font-size: 14px;
+    font-weight: 800;
+    font-style: normal;
+    letter-spacing: 2px;
+    color: #ffffff;
+    display: -webkit-box; /* OLD - iOS 6-, Safari 3.1-6 */
+    display: -moz-box; /* OLD - Firefox 19- */
+    display: -ms-flexbox; /* TWEENER - IE 10 */
+    display: -webkit-flex; /* NEW - Chrome */
+    display: flex;
+    align-items: center;
+}
+
+.inner-nav-item:hover {
+    color: #163150;
+    background-color: #ffd166; 
+}
+
+.report-rect {
+    border-radius: 3px;
+    background-color: #027796;
+    grid-column-start: full;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.report-text {
+    height: 100%;
+    font-family: Lato;
+    font-size: 14px;
+    font-weight: 900;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 5%;
+    letter-spacing: 2px;
+    text-align: right;
+}
+
+.report-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.report-rect:hover #path-2 {
+    fill: #282138;
+}
+.report-rect:hover {
+    color: #282138;
+}
+
+.scams {
+    grid-column-start: scams;
+    grid-row: full / -1;
+    text-align: center;
+    vertical-align: middle;
+    justify-content: center;
+    display: flex;
+}
+
+.api {
+    grid-column-start: api;
+    grid-row: full / -1;
+    text-align: center;
+    vertical-align: middle;
+    justify-content: center;
+    display: flex;
+}
+
+.faq {
+    grid-column-start: faq;
+    grid-row: full / -1;
+    text-align: center;
+    vertical-align: middle;
+    justify-content: center;
+    display: flex;
+}
+
+.domain-checker {
+    grid-column-start: domain-checker;
+    grid-row: full / -1;
+    text-align: center;
+    vertical-align: middle;
+    justify-content: center;
+    display: flex;
+}
+
+.navbar a {
+    color: #ffffff;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+@media only screen and (max-width: 768px) {
+    .nav-icon {
+        grid-column: empty-left / inner-nav-grid-container;
+        grid-row: top-buffer / -1;
+    }
+
+    .scams {
+        grid-column: faq / empty-four;
+        grid-row: full;
+    }
+    .faq {
+        grid-column: scams / empty-two;
+        grid-row: full;
+    }
+    .domain-checker {
+        grid-column: faq / empty-four;
+        grid-row: full-two;
+    }
+    .api {
+        grid-column: scams / empty-two;
+        grid-row: full-two;
+    }
+
+    .navbar {
+        height: 125px;
+    }
+
+    .report-inner-grid {
+        grid-column: report-inner-grid / -1;
+        grid-row: top-buffer / -1;
+    }
+
+    .inner-nav-grid-container {
+        grid-row: top-buffer / -1;
+    }
+
+    .inner-nav-item {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0px;
+    }
+    .report-text {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0px;
+    }
+}
+
+
+@media only screen and (max-width: 1024px) {
+    .nav-icon {
+        grid-column: empty-left / inner-nav-grid-container;
+        grid-row: top-buffer / -1;
+    }
+}
