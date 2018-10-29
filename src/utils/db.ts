@@ -8,6 +8,9 @@ import createDictionary from '@cryptoscamdb/array-object-dictionary';
 import Scam from '../classes/scam.class';
 import * as Debug from 'debug';
 import Entry from '../models/entry';
+import Coins from '../models/coins';
+import { copyFileSync } from 'fs-extra';
+import { priceLookup } from './lookup';
 
 const debug = Debug('db');
 
@@ -27,6 +30,9 @@ interface Database {
         inactives: Scam[];
         actives: Scam[];
     };
+    prices: {
+        cryptos: Coins[];
+    };
 }
 
 /* Define empty database structure */
@@ -42,6 +48,9 @@ const db: Database = {
         ips: [],
         inactives: [],
         actives: []
+    },
+    prices: {
+        cryptos: []
     }
 };
 
@@ -127,8 +136,12 @@ export const exitHandler = (): void => {
 
 export const init = async (): Promise<void> => {
     await readEntries();
+    await module.exports.priceUpdate();
     await updateIndex();
     await module.exports.persist();
+    if (config.interval.priceLookup > 0) {
+        setInterval(module.exports.priceUpdate, config.interval.priceLookup);
+    }
     if (config.interval.databasePersist > 0) {
         setInterval(module.exports.persist, config.interval.databasePersist);
     }
@@ -149,4 +162,14 @@ export const write = (scamUrl, data): void => {
 export const persist = async (): Promise<void> => {
     debug('Persisting cache...');
     await fs.writeFile('./cache.db', serialijse.serialize(db));
+};
+
+export const priceUpdate = async (): Promise<void> => {
+    debug('Updating price...');
+    config.coins.forEach(async each => {
+        let ret = await priceLookup(each.priceSource, each.priceEndpoint);
+        let price = await JSON.parse(JSON.stringify(ret)).USD;
+        debug(each.ticker + ' price in usd: ' + JSON.stringify(price));
+        db.prices.cryptos.push({ ticker: each.ticker, price: price });
+    });
 };

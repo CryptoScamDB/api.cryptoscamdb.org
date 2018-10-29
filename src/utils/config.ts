@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as dns from '@cryptoscamdb/graceful-dns';
 import * as Debug from 'debug';
+import ConfigCoin from '../models/configCoin';
 
 const debug = Debug('config');
 
@@ -12,6 +13,7 @@ export interface Config {
         cacheExpiration: number;
         cacheRenewCheck: number;
         databasePersist: number;
+        priceLookup: number;
     };
     apiKeys: {
         Google_SafeBrowsing: string;
@@ -40,6 +42,7 @@ export interface Config {
             timeoutAfter?: number;
         };
     };
+    coins: ConfigCoin[];
 }
 
 let configObject: Config;
@@ -53,7 +56,8 @@ if (!fs.existsSync('./config.json')) {
         interval: {
             cacheExpiration: -1,
             cacheRenewCheck: -1,
-            databasePersist: -1
+            databasePersist: -1,
+            priceLookup: 300000
         },
         apiKeys: {
             Google_SafeBrowsing: undefined,
@@ -69,7 +73,18 @@ if (!fs.existsSync('./config.json')) {
                 NS: { enabled: false }
             },
             HTTP: { enabled: false }
-        }
+        },
+        coins: [
+            {
+                ticker: 'eth',
+                priceSource: 'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD',
+                priceEndpoint: 'USD',
+                addressLookUp:
+                    'https://api.etherscan.io/api?module=account&action=balance&tag=latest&address=',
+                addressEndpoint: 'result',
+                decimal: 0
+            }
+        ]
     };
 } else {
     /* Config was found */

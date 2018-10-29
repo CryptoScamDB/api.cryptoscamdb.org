@@ -8,6 +8,7 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "noEmitOnError": true,
+    "noEmit": true,
     "lib": [
       "es2017"
     ]

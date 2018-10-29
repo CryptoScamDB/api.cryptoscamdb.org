@@ -245,3 +245,34 @@ export const getVirusTotal = (url): Promise<VirusTotalResponse> => {
         );
     });
 };
+
+/* Get price per crypto */
+export const priceLookup = (url, endpoint) => {
+    return new Promise((resolve, reject) => {
+        debug('Looking up: ' + url);
+        request(url, { json: true }, (err, response, body) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(body);
+            }
+        });
+    });
+};
+
+/* Get account balance */
+export const accountLookup = (address, url, endpoint) => {
+    return new Promise((resolve, reject) => {
+        debug(
+            'Looking up ' + address + ' at url: ' + url + address + ' and endpoint - ' + endpoint
+        );
+        request(url + address, { json: true }, (err, response, body) => {
+            //debug('body.endpoint = ' + endpoint + ' - ' + JSON.stringify(body, null, 4))
+            if (err) {
+                reject({ success: false, err: err });
+            } else {
+                resolve({ success: true, body: body });
+            }
+        });
+    });
+};
