@@ -14,8 +14,6 @@ import * as slack from './slack';
 import { getGoogleSafeBrowsing, getURLScan, getVirusTotal, accountLookup } from './lookup';
 import addressCheck from './addressCheck';
 import { flatten } from 'flat';
-import { Z_BEST_COMPRESSION } from 'zlib';
-import { outputFile } from 'fs-extra';
 
 const debug = Debug('router');
 const router = express.Router();
