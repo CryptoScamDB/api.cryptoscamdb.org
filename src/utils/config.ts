@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as dns from '@cryptoscamdb/graceful-dns';
 import * as Debug from 'debug';
-import ConfigCoin from '../models/configCoin';
+import configCoin from '../models/configCoin';
 
 const debug = Debug('config');
 
@@ -50,7 +50,7 @@ export interface Config {
             timeoutAfter?: number;
         };
     };
-    coins: ConfigCoin[];
+    coins: configCoin[];
 }
 
 let configObject: Config;
