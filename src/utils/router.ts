@@ -16,6 +16,7 @@ import addressCheck from './addressCheck';
 import { flatten } from 'flat';
 import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
+import * as autoPR from './autoPR';
 
 const debug = Debug('router');
 const router = express.Router();
@@ -28,7 +29,9 @@ router.use((req, res, next) => {
 });
 
 router.get('/', (req, res) => res.send(name + ' ' + version));
-
+router.get('/v1/featured', (req, res) =>
+    res.json({ success: true, result: db.read().verified.filter(entry => entry.featured) })
+);
 router.get('/v1/scams', (req, res) => res.json({ success: true, result: db.read().scams }));
 router.get('/v1/addresses', (req, res) =>
     res.json({ success: true, result: db.read().index.addresses })
@@ -371,7 +374,6 @@ router.post('/v1/report', async (req, res) => {
         if (config.apiKeys.Github_AccessKey) {
             if (isValidApiKey(req.query.apikey)) {
                 let newEntry = req.body;
-                debug('Old entry: ' + JSON.stringify(newEntry, null, 4));
 
                 /* Force name to standard */
                 if (newEntry.name && newEntry.url) {
@@ -443,7 +445,8 @@ router.post('/v1/report', async (req, res) => {
                 };
                 debug('New command created: ' + JSON.stringify(command, null, 4));
 
-                // TODO: ADD new command to github.com/cryptoscamdb/blacklist/commands/blank.yaml
+                // TODO: Handle checking to make sure submission is alright.
+                await autoPR.autoPR(command, config.apiKeys.Github_AccessKey);
 
                 res.json({ success: true, newEntry: newEntry });
             } else {
@@ -456,8 +459,7 @@ router.post('/v1/report', async (req, res) => {
             });
         }
     } else {
-
-    /* Webapp/App-based Reporting */
+        /* Webapp/App-based Reporting */
         if (
             config.apiKeys.Google_Captcha &&
             config.apiKeys.Slack_Webhook &&
@@ -495,9 +497,6 @@ router.post('/v1/report', async (req, res) => {
         }
     }
 });
-
-/* Redirect old API requests */
-router.get('/:all*?', (req, res) => res.redirect('/v1/' + req.params.all));
 
 /* Incoming Github webhook attempt */
 router.post('/update/', (req, res) => {

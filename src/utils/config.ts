@@ -27,6 +27,13 @@ export interface Config {
         enabled: boolean;
         interval?: number;
     };
+    autoPR: {
+        enabled: boolean;
+        repository?: {
+            username?: string;
+            repository?: string;
+        };
+    };
     lookups: {
         DNS: {
             IP: {
@@ -69,6 +76,13 @@ if (!fs.existsSync('./config.json')) {
             Slack_Webhook: undefined
         },
         autoPull: { enabled: false },
+        autoPR: {
+            enabled: true,
+            repository: {
+                username: 'CryptoScamDB',
+                repository: 'blacklist'
+            }
+        },
         lookups: {
             DNS: {
                 IP: { enabled: false },
