@@ -18,6 +18,7 @@ export interface Config {
     apiKeys: {
         Google_SafeBrowsing: string;
         Github_WebHook: string;
+        Github_AccessKey: string;
         VirusTotal: string;
         Google_Captcha: string;
         Slack_Webhook: string;
@@ -62,6 +63,7 @@ if (!fs.existsSync('./config.json')) {
         apiKeys: {
             Google_SafeBrowsing: undefined,
             Github_WebHook: undefined,
+            Github_AccessKey: undefined,
             VirusTotal: undefined,
             Google_Captcha: undefined,
             Slack_Webhook: undefined
@@ -98,6 +100,9 @@ if (!fs.existsSync('./config.json')) {
     }
     if (!config.apiKeys.Google_Captcha) {
         debug('Warning: No Google Captcha secret found');
+    }
+    if (!config.apiKeys.Github_AccessKey) {
+        debug('Warning: No Github access key found');
     }
     if (!config.apiKeys.Slack_Webhook) {
         debug('Warning: No Slack Webhook found');

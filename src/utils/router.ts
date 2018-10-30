@@ -14,6 +14,8 @@ import * as slack from './slack';
 import { getGoogleSafeBrowsing, getURLScan, getVirusTotal, accountLookup } from './lookup';
 import addressCheck from './addressCheck';
 import { flatten } from 'flat';
+import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
+import { categorizeUrl } from './categorize';
 
 const debug = Debug('router');
 const router = express.Router();
@@ -363,16 +365,124 @@ router.get('/v1/price/:coin', async (req, res) => {
 });
 
 /* Incoming user reports */
-router.post('/v1/report/', async (req, res) => {
-    if (
-        config.apiKeys.Google_Captcha &&
-        config.apiKeys.Slack_Webhook &&
-        req.body &&
-        req.body.args &&
-        req.body.args.captcha
-    ) {
-        const isValidCaptcha = await captcha.verifyResponse(req.body.args.captcha);
-        if (isValidCaptcha) {
+router.post('/v1/report', async (req, res) => {
+    /* API-based reporting */
+    if (req.query && req.body) {
+        if (config.apiKeys.Github_AccessKey) {
+            if (isValidApiKey(req.query.apikey)) {
+                let newEntry = req.body;
+                debug('Old entry: ' + JSON.stringify(newEntry, null, 4));
+
+                /* Force name to standard */
+                if (newEntry.name && newEntry.url) {
+                    newEntry.name = newEntry.name
+                        .replace('https://', '')
+                        .replace('http://', '')
+                        .replace('www.', '');
+                    newEntry.url =
+                        'http://' +
+                        newEntry.url
+                            .replace('https://', '')
+                            .replace('http://', '')
+                            .replace('www.', '');
+                }
+
+                /* Fill in url/name fields based on the other */
+                if (newEntry.name && !newEntry.url) {
+                    newEntry.name = newEntry.name
+                        .replace('https://', '')
+                        .replace('http://', '')
+                        .replace('www.', '');
+                    newEntry['url'] = 'http://' + newEntry.name;
+                }
+                if (!newEntry.name && newEntry.url) {
+                    newEntry.url =
+                        'http://' +
+                        newEntry.url
+                            .replace('https://', '')
+                            .replace('http://', '')
+                            .replace('www.', '');
+                    newEntry.name = newEntry.url.replace('http://', '');
+                }
+
+                /* Attempt to categorize if name or url exists, but no cat/subcat */
+                if (
+                    (newEntry.name || newEntry.url) &&
+                    !newEntry.category &&
+                    !newEntry.subcategory
+                ) {
+                    const cat = await categorizeUrl(newEntry);
+                    if (cat.categorized && cat.category && cat.subcategory) {
+                        newEntry['category'] = cat.category;
+                        newEntry['subcategory'] = cat.subcategory;
+                    }
+                }
+
+                /* Cast addresses field as an array */
+                if (typeof newEntry.addresses === 'string') {
+                    newEntry.addresses = [newEntry.addresses];
+                }
+
+                /* Determine coin field based on first address input. Lightweight; defaults to most likely. */
+                if (newEntry.addresses && !newEntry.coin) {
+                    if (/^0x?[0-9A-Fa-f]{40,42}$/.test(newEntry.addresses[0])) {
+                        newEntry['coin'] = 'eth';
+                    } else if (/^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(newEntry.addresses[0])) {
+                        newEntry['coin'] = 'btc';
+                    } else if (/^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(newEntry.addresses[0])) {
+                        newEntry['coin'] = 'ltc';
+                    }
+                }
+
+                /* Determine reporter */
+                let reporter = apiKeyOwner(req.query.apikey);
+                newEntry['reporter'] = reporter;
+                let command = {
+                    type: 'ADD',
+                    data: newEntry
+                };
+                debug('New command created: ' + JSON.stringify(command, null, 4));
+
+                // TODO: ADD new command to github.com/cryptoscamdb/blacklist/commands/blank.yaml
+
+                res.json({ success: true, newEntry: newEntry });
+            } else {
+                res.json({ success: false, message: 'This is an invalid API Key.' });
+            }
+        } else {
+            res.json({
+                success: false,
+                message: 'This config does not support Github-based Auto-PRs'
+            });
+        }
+    } else {
+
+    /* Webapp/App-based Reporting */
+        if (
+            config.apiKeys.Google_Captcha &&
+            config.apiKeys.Slack_Webhook &&
+            req.body &&
+            req.body.args &&
+            req.body.args.captcha
+        ) {
+            const isValidCaptcha = await captcha.verifyResponse(req.body.args.captcha);
+            if (isValidCaptcha) {
+                slack.sendReport(req.body);
+                res.json({
+                    success: true
+                });
+            } else {
+                res.json({
+                    success: false,
+                    message: 'Invalid captcha response provided'
+                });
+            }
+        } else if (
+            config.apiKeys.Slack_Webhook &&
+            req.body &&
+            req.body.args &&
+            req.body.args.captcha
+        ) {
             slack.sendReport(req.body);
             res.json({
                 success: true
@@ -380,19 +490,9 @@ router.post('/v1/report/', async (req, res) => {
         } else {
             res.json({
                 success: false,
-                message: 'Invalid captcha response provided'
+                message: 'No captcha response provided'
             });
         }
-    } else if (config.apiKeys.Slack_Webhook && req.body && req.body.args && req.body.args.captcha) {
-        slack.sendReport(req.body);
-        res.json({
-            success: true
-        });
-    } else {
-        res.json({
-            success: false,
-            message: 'No captcha response provided'
-        });
     }
 });
 
