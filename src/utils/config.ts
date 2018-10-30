@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as dns from '@cryptoscamdb/graceful-dns';
 import * as Debug from 'debug';
-import configCoin from '../models/configCoin';
+import configCoin from '../models/configcoin';
 
 const debug = Debug('config');
 
