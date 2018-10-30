@@ -416,6 +416,10 @@ router.get('/v1/price/:coin', async (req, res) => {
     }
 });
 
+router.get('/*', (req, res) =>
+    res.json({ success: false, message: 'This is an invalid api endpoint.' })
+);
+
 /* Incoming user reports */
 router.post('/v1/report', async (req, res) => {
     /* API-based reporting */
