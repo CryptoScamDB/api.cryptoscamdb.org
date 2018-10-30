@@ -17,6 +17,7 @@ import { flatten } from 'flat';
 import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
 import * as autoPR from './autoPR';
+import * as ensResolve from './ensResolve.js';
 
 const debug = Debug('router');
 const router = express.Router();
@@ -67,21 +68,32 @@ router.get('/v1/check/:search', async (req, res) => {
         if (req.query.coin) {
             if (req.query.coin.toLowerCase() === 'eth') {
                 /* Searched for a eth address */
-                res.json(await addressCheck(req.params.search, 'eth'));
+                let retJson = await addressCheck(req.params.search, 'eth');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'etc') {
                 /* Searched for a etc address */
-                res.json(await addressCheck(req.params.search, 'etc'));
+                let retJson = await addressCheck(req.params.search, 'etc');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'btc') {
                 /* Searched for a btc address */
-                res.json(await addressCheck(req.params.search, 'btc'));
+                let retJson = await addressCheck(req.params.search, 'btc');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'bch') {
                 /* Searched for a bch address */
-                res.json(await addressCheck(req.params.search, 'bch'));
+                let retJson = await addressCheck(req.params.search, 'bch');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'ltc') {
                 /* Searched for a ltc address */
-                res.json(await addressCheck(req.params.search, 'ltc'));
+                let retJson = await addressCheck(req.params.search, 'ltc');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             } else {
                 res.json({
+                    input: req.params.search,
                     success: false,
                     result: 'We do not support the queried coin yet.',
                     coin: req.query.chain
@@ -91,7 +103,6 @@ router.get('/v1/check/:search', async (req, res) => {
     }
     if (/^0x?[0-9A-Fa-f]{40,42}$/.test(req.params.search)) {
         /* Searched for an eth/etc address */
-
         let ethAccountBalance = await (function() {
             return new Promise(async (resolve, reject) => {
                 config.coins.forEach(async each => {
@@ -107,7 +118,6 @@ router.get('/v1/check/:search', async (req, res) => {
                             reject(0);
                         } else {
                             let ethBalance = returned['body.' + each.addressEndpoint];
-                            debug('eth balance ret: ' + JSON.stringify(ethBalance));
                             if (ethBalance === undefined) {
                                 resolve(-1);
                             } else {
@@ -122,7 +132,6 @@ router.get('/v1/check/:search', async (req, res) => {
         let etcAccountBalance = await (function() {
             return new Promise(async (resolve, reject) => {
                 config.coins.forEach(async each => {
-                    debug('each: ' + each);
                     if (each.ticker === 'etc') {
                         let returned = flatten(
                             await accountLookup(
@@ -131,12 +140,10 @@ router.get('/v1/check/:search', async (req, res) => {
                                 each.addressEndpoint
                             )
                         );
-                        debug(JSON.stringify(returned));
                         if (returned.success === false) {
                             reject(0);
                         } else {
                             let etcBalance = returned['body.' + each.addressEndpoint];
-                            debug('etc balance ret: ' + JSON.stringify(etcBalance));
                             if (etcBalance === undefined) {
                                 resolve(-1);
                             } else {
@@ -149,25 +156,58 @@ router.get('/v1/check/:search', async (req, res) => {
         })();
         if (ethAccountBalance === -1) {
             res.json({
+                input: req.params.search,
                 success: false,
                 message: 'Unable to find account balance for Bitcoin. Using Bitcoin Cash instead.',
                 result: await addressCheck(req.params.search, 'etc')
             });
         } else if (etcAccountBalance === -1) {
             res.json({
+                input: req.params.search,
                 success: false,
                 message: 'Unable to find account balance for Bitcoin Cash. Using Bitcoin instead.',
                 result: await addressCheck(req.params.search, 'eth')
             });
         } else if (ethAccountBalance > etcAccountBalance) {
             /* Searched for a eth address */
-            res.json(await addressCheck(req.params.search, 'eth'));
+            let retJson = await addressCheck(req.params.search, 'eth');
+            retJson['input'] = req.params.search;
+            res.json(retJson);
         } else if (etcAccountBalance > ethAccountBalance) {
             /* Searched for a etc address */
-            res.json(await addressCheck(req.params.search, 'etc'));
+            let retJson = await addressCheck(req.params.search, 'etc');
+            retJson['input'] = req.params.search;
+            res.json(retJson);
         } else if (etcAccountBalance === 0 && ethAccountBalance === 0) {
             /* No balance in eth/etc, defaulting to eth */
-            res.json(await addressCheck(req.params.search, 'eth'));
+            let retJson = await addressCheck(req.params.search, 'eth');
+            retJson['input'] = req.params.search;
+            res.json(retJson);
+        }
+    } else if (/((?:.eth)|(?:.luxe)|(?:.test))$/.test(req.params.search)) {
+        /* Searched for an ENS name */
+        // Check if valid ENS name
+        if (/(?=([(a-z0-9A-Z)]{7,100})(?=(.eth|.luxe|.test|.xyz)$))/.test(req.params.search)) {
+            try {
+                let address = await ensResolve(req.params.search);
+                let retJson = await addressCheck(address, 'eth');
+                retJson['address'] = address;
+                retJson.type = 'ens';
+                retJson['validRoot'] = true;
+                retJson['input'] = req.params.search;
+                res.json(retJson);
+            } catch (e) {
+                debug('Issue resolving ENS name: ' + req.params.search);
+                res.json({ success: false, message: e });
+            }
+        } else {
+            res.json({
+                input: req.params.search,
+                success: false,
+                type: 'ens',
+                validRoot: false,
+                message: 'Invalid ENS name'
+            });
         }
     } else if (/^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(req.params.search)) {
         /* Searched for an btc/bch address */
@@ -177,7 +217,9 @@ router.get('/v1/check/:search', async (req, res) => {
             )
         ) {
             /* Searched for a bch address */
-            res.json(await addressCheck(req.params.search, 'bch'));
+            let retJson = await addressCheck(req.params.search, 'bch');
+            retJson['input'] = req.params.search;
+            res.json(retJson);
         } else {
             let btcAccountBalance = await (function() {
                 return new Promise(async (resolve, reject) => {
@@ -194,7 +236,6 @@ router.get('/v1/check/:search', async (req, res) => {
                                 reject(0);
                             } else {
                                 let btcBalance = returned['body.' + each.addressEndpoint];
-                                debug('btc balance ret: ' + JSON.stringify(btcBalance));
                                 if (btcBalance === undefined) {
                                     resolve(-1);
                                 } else {
@@ -209,7 +250,6 @@ router.get('/v1/check/:search', async (req, res) => {
             let bchAccountBalance = await (function() {
                 return new Promise(async (resolve, reject) => {
                     config.coins.forEach(async each => {
-                        debug('each: ' + each);
                         if (each.ticker === 'bch') {
                             let returned = flatten(
                                 await accountLookup(
@@ -218,12 +258,10 @@ router.get('/v1/check/:search', async (req, res) => {
                                     each.addressEndpoint
                                 )
                             );
-                            debug(JSON.stringify(returned));
                             if (returned.success === false) {
                                 reject(0);
                             } else {
                                 let bchBalance = returned['body.' + each.addressEndpoint];
-                                debug('bch balance ret: ' + JSON.stringify(bchBalance));
                                 if (bchBalance === undefined) {
                                     resolve(-1);
                                 } else {
@@ -236,6 +274,7 @@ router.get('/v1/check/:search', async (req, res) => {
             })();
             if (btcAccountBalance === -1) {
                 res.json({
+                    input: req.params.search,
                     success: false,
                     message:
                         'Unable to find account balance for Bitcoin. Using Bitcoin Cash instead.',
@@ -243,6 +282,7 @@ router.get('/v1/check/:search', async (req, res) => {
                 });
             } else if (bchAccountBalance === -1) {
                 res.json({
+                    input: req.params.search,
                     success: false,
                     message:
                         'Unable to find account balance for Bitcoin Cash. Using Bitcoin instead.',
@@ -250,18 +290,26 @@ router.get('/v1/check/:search', async (req, res) => {
                 });
             } else if (btcAccountBalance > bchAccountBalance) {
                 /* Searched for a btc address */
-                res.json(await addressCheck(req.params.search, 'btc'));
+                let retJson = await addressCheck(req.params.search, 'btc');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             } else if (bchAccountBalance > btcAccountBalance) {
                 /* Searched for a bch address */
-                res.json(await addressCheck(req.params.search, 'bch'));
+                let retJson = await addressCheck(req.params.search, 'bch');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             } else if (bchAccountBalance === 0 && btcAccountBalance === 0) {
                 /* No balance in btc/bch, defaulting to btc */
-                res.json(await addressCheck(req.params.search, 'btc'));
+                let retJson = await addressCheck(req.params.search, 'btc');
+                retJson['input'] = req.params.search;
+                res.json(retJson);
             }
         }
     } else if (/^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(req.params.search)) {
         /* Searched for a ltc address */
-        res.json(await addressCheck(req.params.search, 'ltc'));
+        let retJson = await addressCheck(req.params.search, 'ltc');
+        retJson['input'] = req.params.search;
+        res.json(retJson);
     } else if (
         /[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/.test(
             req.params.search
@@ -330,6 +378,7 @@ router.get('/v1/check/:search', async (req, res) => {
         }
     } else {
         res.json({
+            input: req.params.search,
             success: false,
             message:
                 'Incorrect search type (must be a btc/bch/eth/etc/ltc address / ip address / URL)'
