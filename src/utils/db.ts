@@ -129,9 +129,7 @@ export const updateIndex = async (): Promise<void> => {
 
 /* Write DB on exit */
 export const exitHandler = (): void => {
-    console.log('Cleaning up...');
     fs.writeFileSync('./cache.db', serialijse.serialize(db));
-    console.log('Exited.');
 };
 
 export const init = async (): Promise<void> => {

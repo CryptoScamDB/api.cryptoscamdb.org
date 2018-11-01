@@ -17,7 +17,7 @@ import { flatten } from 'flat';
 import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
 import * as autoPR from './autoPR';
-import * as ensResolve from './ensResolve.js';
+import * as ensResolve from './ensResolve';
 
 const debug = Debug('router');
 const router = express.Router();
@@ -186,28 +186,39 @@ router.get('/v1/check/:search', async (req, res) => {
         }
     } else if (/((?:.eth)|(?:.luxe)|(?:.test))$/.test(req.params.search)) {
         /* Searched for an ENS name */
-        // Check if valid ENS name
-        if (/(?=([(a-z0-9A-Z)]{7,100})(?=(.eth|.luxe|.test|.xyz)$))/.test(req.params.search)) {
-            try {
-                let address = await ensResolve(req.params.search);
-                let retJson = await addressCheck(address, 'eth');
-                retJson['address'] = address;
-                retJson.type = 'ens';
-                retJson['validRoot'] = true;
-                retJson['input'] = req.params.search;
-                res.json(retJson);
-            } catch (e) {
-                debug('Issue resolving ENS name: ' + req.params.search);
-                res.json({ success: false, message: e });
-            }
-        } else {
+        if (!config.lookups.ENS.enabled || !config.lookups.ENS.provider) {
             res.json({
                 input: req.params.search,
                 success: false,
                 type: 'ens',
-                validRoot: false,
-                message: 'Invalid ENS name'
+                message: 'This api server is not configured to support ENS lookups.'
             });
+        } else {
+            if (/(?=([(a-z0-9A-Z)]{7,100})(?=(.eth|.luxe|.test|.xyz)$))/.test(req.params.search)) {
+                try {
+                    let address = await ensResolve.resolve(
+                        req.params.search,
+                        config.lookups.ENS.provider
+                    );
+                    let retJson = await addressCheck(address, 'eth');
+                    retJson['address'] = address;
+                    retJson.type = 'ens';
+                    retJson['validRoot'] = true;
+                    retJson['input'] = req.params.search;
+                    res.json(retJson);
+                } catch (e) {
+                    debug('Issue resolving ENS name: ' + req.params.search);
+                    res.json({ success: false, message: e });
+                }
+            } else {
+                res.json({
+                    input: req.params.search,
+                    success: false,
+                    type: 'ens',
+                    validRoot: false,
+                    message: 'Invalid ENS name'
+                });
+            }
         }
     } else if (/^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(req.params.search)) {
         /* Searched for an btc/bch address */
@@ -424,11 +435,11 @@ router.get('/*', (req, res) =>
 router.post('/v1/report', async (req, res) => {
     /* API-based reporting */
     if (req.query && req.body) {
-        if (config.apiKeys.Github_AccessKey) {
+        if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
             if (isValidApiKey(req.query.apikey)) {
                 let newEntry = req.body;
 
-                /* Force name to standard */
+                /* Force name/url fields to standard */
                 if (newEntry.name && newEntry.url) {
                     newEntry.name = newEntry.name
                         .replace('https://', '')
@@ -498,10 +509,28 @@ router.post('/v1/report', async (req, res) => {
                 };
                 debug('New command created: ' + JSON.stringify(command, null, 4));
 
-                // TODO: Handle checking to make sure submission is alright.
-                await autoPR.autoPR(command, config.apiKeys.Github_AccessKey);
+                // TODO: Checking to make sure submission is alright.
+                try {
+                    let successStatus = await autoPR.autoPR(
+                        command,
+                        config.apiKeys.Github_AccessKey
+                    );
+                    if (successStatus.success) {
+                        if (successStatus.url) {
+                            res.json({ success: true, url: successStatus.url, newEntry: newEntry });
+                        } else {
+                            res.json({ success: true, newEntry: newEntry });
+                        }
+                    } else {
+                        // Since error, push to cache for later processing
+                        res.json({ success: false, message: 'Github Server timed out' });
+                    }
+                } catch (e) {
+                    // Since error, push to cache for later processing.
 
-                res.json({ success: true, newEntry: newEntry });
+                    res.json({ success: false, message: 'Github Server timed out' });
+                    debug('Error: ' + e);
+                }
             } else {
                 res.json({ success: false, message: 'This is an invalid API Key.' });
             }

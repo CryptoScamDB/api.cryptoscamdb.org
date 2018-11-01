@@ -49,6 +49,10 @@ export interface Config {
             maxConcurrent?: number;
             timeoutAfter?: number;
         };
+        ENS: {
+            enabled: boolean;
+            provider?: string;
+        };
     };
     coins: configCoin[];
 }
@@ -88,7 +92,8 @@ if (!fs.existsSync('./config.json')) {
                 IP: { enabled: false },
                 NS: { enabled: false }
             },
-            HTTP: { enabled: false }
+            HTTP: { enabled: false },
+            ENS: { enabled: false }
         },
         coins: [
             {

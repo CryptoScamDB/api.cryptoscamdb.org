@@ -1,5 +1,5 @@
-import config from '../utils/config';
-import * as autoPR from '../utils/autoPR';
+import config from '../src/utils/config';
+import * as autoPR from '../src/utils/autoPR';
 
 const githubKey = config.apiKeys.Github_AccessKey;
 const input = {
@@ -17,7 +17,11 @@ const input = {
 };
 
 const startTest = async (input, githubKey) => {
-    const pr = autoPR.autoPR(input, githubKey);
+    try {
+        await autoPR.autoPR(input, githubKey);
+    } catch (e) {
+        console.log('Error: ' + e);
+    }
 };
 
 startTest(input, githubKey);
