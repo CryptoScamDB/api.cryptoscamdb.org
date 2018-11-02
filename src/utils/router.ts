@@ -200,12 +200,34 @@ router.get('/v1/check/:search', async (req, res) => {
                         req.params.search,
                         config.lookups.ENS.provider
                     );
-                    let retJson = await addressCheck(address, 'eth');
-                    retJson['address'] = address;
-                    retJson.type = 'ens';
-                    retJson['validRoot'] = true;
-                    retJson['input'] = req.params.search;
-                    res.json(retJson);
+                    if (address === '0x0000000000000000000000000000000000000000') {
+                        // If lookup failed, try again one more time, then return err;
+                        let address = await ensResolve.resolve(
+                            req.params.search,
+                            config.lookups.ENS.provider
+                        );
+                        if (address === '0x0000000000000000000000000000000000000000') {
+                            debug('Issue resolving ENS name: ' + req.params.search);
+                            res.json({
+                                success: false,
+                                message: 'Failed to resolve ENS name due to network errors.'
+                            });
+                        } else {
+                            let retJson = await addressCheck(address, 'eth');
+                            retJson['address'] = address;
+                            retJson.type = 'ens';
+                            retJson['validRoot'] = true;
+                            retJson['input'] = req.params.search;
+                            res.json(retJson);
+                        }
+                    } else {
+                        let retJson = await addressCheck(address, 'eth');
+                        retJson['address'] = address;
+                        retJson.type = 'ens';
+                        retJson['validRoot'] = true;
+                        retJson['input'] = req.params.search;
+                        res.json(retJson);
+                    }
                 } catch (e) {
                     debug('Issue resolving ENS name: ' + req.params.search);
                     res.json({ success: false, message: e });
@@ -438,98 +460,113 @@ router.post('/v1/report', async (req, res) => {
         if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
             if (isValidApiKey(req.query.apikey)) {
                 let newEntry = req.body;
-
-                /* Force name/url fields to standard */
-                if (newEntry.name && newEntry.url) {
-                    newEntry.name = newEntry.name
-                        .replace('https://', '')
-                        .replace('http://', '')
-                        .replace('www.', '');
-                    newEntry.url =
-                        'http://' +
-                        newEntry.url
+                if (newEntry.addresses || newEntry.name || newEntry.url) {
+                    /* Force name/url fields to standard */
+                    if (newEntry.name && newEntry.url) {
+                        newEntry.name = newEntry.name
                             .replace('https://', '')
                             .replace('http://', '')
                             .replace('www.', '');
-                }
+                        newEntry.url =
+                            'http://' +
+                            newEntry.url
+                                .replace('https://', '')
+                                .replace('http://', '')
+                                .replace('www.', '');
+                    }
 
-                /* Fill in url/name fields based on the other */
-                if (newEntry.name && !newEntry.url) {
-                    newEntry.name = newEntry.name
-                        .replace('https://', '')
-                        .replace('http://', '')
-                        .replace('www.', '');
-                    newEntry['url'] = 'http://' + newEntry.name;
-                }
-                if (!newEntry.name && newEntry.url) {
-                    newEntry.url =
-                        'http://' +
-                        newEntry.url
+                    /* Fill in url/name fields based on the other */
+                    if (newEntry.name && !newEntry.url) {
+                        newEntry.name = newEntry.name
                             .replace('https://', '')
                             .replace('http://', '')
                             .replace('www.', '');
-                    newEntry.name = newEntry.url.replace('http://', '');
-                }
-
-                /* Attempt to categorize if name or url exists, but no cat/subcat */
-                if (
-                    (newEntry.name || newEntry.url) &&
-                    !newEntry.category &&
-                    !newEntry.subcategory
-                ) {
-                    const cat = await categorizeUrl(newEntry);
-                    if (cat.categorized && cat.category && cat.subcategory) {
-                        newEntry['category'] = cat.category;
-                        newEntry['subcategory'] = cat.subcategory;
+                        newEntry['url'] = 'http://' + newEntry.name;
                     }
-                }
-
-                /* Cast addresses field as an array */
-                if (typeof newEntry.addresses === 'string') {
-                    newEntry.addresses = [newEntry.addresses];
-                }
-
-                /* Determine coin field based on first address input. Lightweight; defaults to most likely. */
-                if (newEntry.addresses && !newEntry.coin) {
-                    if (/^0x?[0-9A-Fa-f]{40,42}$/.test(newEntry.addresses[0])) {
-                        newEntry['coin'] = 'eth';
-                    } else if (/^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(newEntry.addresses[0])) {
-                        newEntry['coin'] = 'btc';
-                    } else if (/^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(newEntry.addresses[0])) {
-                        newEntry['coin'] = 'ltc';
+                    if (!newEntry.name && newEntry.url) {
+                        newEntry.url =
+                            'http://' +
+                            newEntry.url
+                                .replace('https://', '')
+                                .replace('http://', '')
+                                .replace('www.', '');
+                        newEntry.name = newEntry.url.replace('http://', '');
                     }
-                }
 
-                /* Determine reporter */
-                let reporter = apiKeyOwner(req.query.apikey);
-                newEntry['reporter'] = reporter;
-                let command = {
-                    type: 'ADD',
-                    data: newEntry
-                };
-                debug('New command created: ' + JSON.stringify(command, null, 4));
-
-                // TODO: Checking to make sure submission is alright.
-                try {
-                    let successStatus = await autoPR.autoPR(
-                        command,
-                        config.apiKeys.Github_AccessKey
-                    );
-                    if (successStatus.success) {
-                        if (successStatus.url) {
-                            res.json({ success: true, url: successStatus.url, newEntry: newEntry });
-                        } else {
-                            res.json({ success: true, newEntry: newEntry });
+                    /* Attempt to categorize if name or url exists, but no cat/subcat */
+                    if (
+                        (newEntry.name || newEntry.url) &&
+                        !newEntry.category &&
+                        !newEntry.subcategory
+                    ) {
+                        const cat = await categorizeUrl(newEntry);
+                        if (cat.categorized && cat.category && cat.subcategory) {
+                            newEntry['category'] = cat.category;
+                            newEntry['subcategory'] = cat.subcategory;
                         }
-                    } else {
-                        // Since error, push to cache for later processing
-                        res.json({ success: false, message: 'Github Server timed out' });
                     }
-                } catch (e) {
-                    // Since error, push to cache for later processing.
 
-                    res.json({ success: false, message: 'Github Server timed out' });
-                    debug('Error: ' + e);
+                    /* Cast addresses field as an array */
+                    if (typeof newEntry.addresses === 'string') {
+                        newEntry.addresses = [newEntry.addresses];
+                    }
+
+                    /* Determine coin field based on first address input. Lightweight; defaults to most likely. */
+                    if (newEntry.addresses && !newEntry.coin) {
+                        if (/^0x?[0-9A-Fa-f]{40,42}$/.test(newEntry.addresses[0])) {
+                            newEntry['coin'] = 'eth';
+                        } else if (
+                            /^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(newEntry.addresses[0])
+                        ) {
+                            newEntry['coin'] = 'btc';
+                        } else if (
+                            /^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(newEntry.addresses[0])
+                        ) {
+                            newEntry['coin'] = 'ltc';
+                        }
+                    }
+
+                    /* Determine reporter */
+                    let reporter = apiKeyOwner(req.query.apikey);
+                    newEntry['reporter'] = reporter;
+                    let command = {
+                        type: 'ADD',
+                        data: newEntry
+                    };
+                    debug('New command created: ' + JSON.stringify(command, null, 4));
+
+                    // TODO: Checking to make sure submission is alright.
+                    try {
+                        let successStatus = await autoPR.autoPR(
+                            command,
+                            config.apiKeys.Github_AccessKey
+                        );
+                        if (successStatus.success) {
+                            if (successStatus.url) {
+                                res.json({
+                                    success: true,
+                                    url: successStatus.url,
+                                    newEntry: newEntry
+                                });
+                            } else {
+                                res.json({ success: true, newEntry: newEntry });
+                            }
+                        } else {
+                            // Since error, push to cache for later processing
+                            res.json({ success: false, message: 'Github Server timed out' });
+                        }
+                    } catch (e) {
+                        // Since error, push to cache for later processing.
+
+                        res.json({ success: false, message: 'Github Server timed out' });
+                        debug('Error: ' + e);
+                    }
+                } else {
+                    res.json({
+                        success: false,
+                        message:
+                            'This is an invalid entry. New entries must contain either an addresses, name, or url field.'
+                    });
                 }
             } else {
                 res.json({ success: false, message: 'This is an invalid API Key.' });
