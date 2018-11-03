@@ -8,9 +8,11 @@ import createDictionary from '@cryptoscamdb/array-object-dictionary';
 import Scam from '../classes/scam.class';
 import * as Debug from 'debug';
 import Entry from '../models/entry';
+import EntryWrapper from '../models/entrywrapper';
 import Coins from '../models/coins';
 import { copyFileSync } from 'fs-extra';
 import { priceLookup } from './lookup';
+import * as autoPR from './autoPR';
 
 const debug = Debug('db');
 
@@ -33,6 +35,7 @@ interface Database {
     prices: {
         cryptos: Coins[];
     };
+    reported: EntryWrapper[];
 }
 
 /* Define empty database structure */
@@ -51,7 +54,8 @@ const db: Database = {
     },
     prices: {
         cryptos: []
-    }
+    },
+    reported: []
 };
 
 /* Read entries from yaml files and load them into DB object */
@@ -170,4 +174,64 @@ export const priceUpdate = async (): Promise<void> => {
         debug(each.ticker + ' price in usd: ' + JSON.stringify(price));
         db.prices.cryptos.push({ ticker: each.ticker, price: price });
     });
+};
+
+export const createPR = async (): Promise<void> => {
+    debug('Checking if we need to PR.');
+    if (db.reported.length < 1 || db.reported == undefined) {
+        debug('Empty report-cache. No need to create a PR.');
+    } else {
+        debug('Entries found: ' + db.reported.length);
+        db.reported.forEach(async entry => {
+            try {
+                let successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
+                if (successStatus.success) {
+                    if (successStatus.url) {
+                        // Success
+                        debug('Removing entry from report list');
+                        db.reported = db.reported.filter(el => {
+                            return el !== entry;
+                        });
+                        debug('Url entry ' + successStatus.url + ' removed from the cache.');
+                    } else {
+                        // Success
+                        debug('Removing entry from report list.');
+                        db.reported = db.reported.filter(el => {
+                            return el !== entry;
+                        });
+                        debug('Entry removed from the cache.');
+                    }
+                } else {
+                    // Failure
+                    debug('Entry could not be removed from the cache.');
+                }
+            } catch (e) {
+                // Failure
+                debug('Github server err in removing entry: ' + e);
+            }
+        });
+    }
+};
+
+export const addReport = async (entry: EntryWrapper) => {
+    // Adding new entry to the reported section.
+    try {
+        db.reported.push(entry);
+    } catch (e) {
+        return { success: false, error: e };
+    }
+
+    if (entry.data.url) {
+        return { success: true, url: entry.data.url, newEntry: entry };
+    } else {
+        return { success: true, newEntry: entry };
+    }
+};
+
+export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
+    if (db.reported.find(el => el !== entry)) {
+        return true;
+    } else {
+        return false;
+    }
 };

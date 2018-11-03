@@ -29,6 +29,7 @@ export interface Config {
     };
     autoPR: {
         enabled: boolean;
+        interval?: number;
         repository?: {
             username?: string;
             repository?: string;
@@ -82,6 +83,7 @@ if (!fs.existsSync('./config.json')) {
         autoPull: { enabled: false },
         autoPR: {
             enabled: true,
+            interval: 60000,
             repository: {
                 username: 'CryptoScamDB',
                 repository: 'blacklist'

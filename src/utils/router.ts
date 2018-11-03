@@ -533,33 +533,36 @@ router.post('/v1/report', async (req, res) => {
                         type: 'ADD',
                         data: newEntry
                     };
-                    debug('New command created: ' + JSON.stringify(command, null, 4));
 
-                    // TODO: Checking to make sure submission is alright.
-                    try {
-                        let successStatus = await autoPR.autoPR(
-                            command,
-                            config.apiKeys.Github_AccessKey
-                        );
-                        if (successStatus.success) {
-                            if (successStatus.url) {
+                    // Checks if duplicate POST cmd.
+                    if (await db.checkReport(command)) {
+                        debug('Duplicate command already found in cache.');
+                        res.json({
+                            success: false,
+                            message: 'Duplicate entry already exists in the report cache.'
+                        });
+                    } else {
+                        debug('New command created: ' + JSON.stringify(command));
+                        let result = await db.addReport(command);
+                        if (result.success) {
+                            if (result.url) {
                                 res.json({
                                     success: true,
-                                    url: successStatus.url,
+                                    url: result.url,
                                     newEntry: newEntry
                                 });
                             } else {
-                                res.json({ success: true, newEntry: newEntry });
+                                res.json({
+                                    success: true,
+                                    newEntry: newEntry
+                                });
                             }
                         } else {
-                            // Since error, push to cache for later processing
-                            res.json({ success: false, message: 'Github Server timed out' });
+                            res.json({
+                                success: false,
+                                message: 'Failed to add report entry to cache.'
+                            });
                         }
-                    } catch (e) {
-                        // Since error, push to cache for later processing.
-
-                        res.json({ success: false, message: 'Github Server timed out' });
-                        debug('Error: ' + e);
                     }
                 } else {
                     res.json({
@@ -574,7 +577,7 @@ router.post('/v1/report', async (req, res) => {
         } else {
             res.json({
                 success: false,
-                message: 'This config does not support Github-based Auto-PRs'
+                message: 'This config does not support Github-based Auto-PRs.'
             });
         }
     } else {

@@ -35,6 +35,16 @@ export const update = async (): Promise<void> => {
     });
 };
 
+export const createPR = async (): Promise<void> => {
+    debug('Starting create-pr process...');
+    db.createPR();
+
+    setInterval(() => {
+        debug('Starting create-pr process...');
+        db.createPR();
+    }, config.autoPR.interval);
+};
+
 export const serve = async (electronApp?: any): Promise<void> => {
     /* Download datafiles if they aren't found yet */
     if (!fs.existsSync('data')) {
@@ -66,6 +76,8 @@ export const serve = async (electronApp?: any): Promise<void> => {
 
     /* Update scams after 100ms timeout (to process async) */
     setTimeout(() => this.update(), 100);
+
+    setTimeout(() => this.createPR(), 100);
 
     /* If auto pulling from Github is enabled; schedule timer */
     if (config.autoPull.enabled) {
