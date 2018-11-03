@@ -17,8 +17,6 @@
 
 ---
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/CryptoScamDB/api.cryptoscamdb.org.svg)](https://greenkeeper.io/)
-
 ## Usage
 
 - Clone the repo with: `git clone --recursive https://github.com/cryptoscamdb/api.cryptoscamdb.org.git`
