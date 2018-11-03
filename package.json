@@ -77,7 +77,7 @@
     "@types/node": "^10.11.2",
     "@types/request": "^2.47.1",
     "husky": "^1.0.1",
-    "lint-staged": "^7.3.0",
+    "lint-staged": "^8.0.4",
     "nodemon": "^1.18.4",
     "prettier": "^1.14.3",
     "rimraf": "^2.6.2",
