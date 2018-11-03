@@ -8,5 +8,4 @@ export default interface Entry {
     reporter?: string;
     coin?: string;
     featured?: boolean;
-    type?: string;
 }
