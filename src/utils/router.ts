@@ -18,6 +18,7 @@ import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
 import * as autoPR from './autoPR';
 import * as ensResolve from './ensResolve';
+import { Z_UNKNOWN } from 'zlib';
 
 const debug = Debug('router');
 const router = express.Router();
@@ -68,29 +69,29 @@ router.get('/v1/check/:search', async (req, res) => {
         if (req.query.coin.toLowerCase() === 'eth') {
             /* Searched for a eth address */
             const retJson = await addressCheck(req.params.search, 'eth');
-            res.json({ status: true, input: req.params.search, coin: 'eth', result: retJson });
+            res.json({ success: true, input: req.params.search, coin: 'eth', result: retJson });
         } else if (req.query.coin.toLowerCase() === 'etc') {
             /* Searched for a etc address */
             const retJson = await addressCheck(req.params.search, 'etc');
-            res.json({ status: true, input: req.params.search, coin: 'etc', result: retJson });
+            res.json({ success: true, input: req.params.search, coin: 'etc', result: retJson });
         } else if (req.query.coin.toLowerCase() === 'btc') {
             /* Searched for a btc address */
             const retJson = await addressCheck(req.params.search, 'btc');
-            res.json({ status: true, input: req.params.search, coin: 'btc', result: retJson });
+            res.json({ success: true, input: req.params.search, coin: 'btc', result: retJson });
         } else if (req.query.coin.toLowerCase() === 'bch') {
             /* Searched for a bch address */
             const retJson = await addressCheck(req.params.search, 'bch');
-            res.json({ status: true, input: req.params.search, coin: 'bch', result: retJson });
+            res.json({ success: true, input: req.params.search, coin: 'bch', result: retJson });
         } else if (req.query.coin.toLowerCase() === 'ltc') {
             /* Searched for a ltc address */
             const retJson = await addressCheck(req.params.search, 'ltc');
-            res.json({ status: true, input: req.params.search, coin: 'ltc', result: retJson });
+            res.json({ success: true, input: req.params.search, coin: 'ltc', result: retJson });
         } else {
             res.json({
-                input: req.params.search,
                 success: false,
+                input: req.params.search,
                 message: 'We do not support the queried coin yet.',
-                coin: req.query.chain
+                coin: req.query.coin
             });
         }
     } else {
@@ -345,7 +346,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         const retJson = await addressCheck(req.params.search, 'bch');
                         res.json({
                             input: req.params.search,
-                            success: retJson.status,
+                            success: true,
                             coin: 'bch',
                             message:
                                 'Unable to find account balance for Bitcoin. Using Bitcoin Cash instead.',
@@ -355,7 +356,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         const retJson = await addressCheck(req.params.search, 'btc');
                         res.json({
                             input: req.params.search,
-                            success: retJson.status,
+                            success: true,
                             coin: 'btc',
                             message:
                                 'Unable to find account balance for Bitcoin Cash. Using Bitcoin instead.',
