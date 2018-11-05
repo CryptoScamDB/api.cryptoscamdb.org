@@ -16,6 +16,7 @@
 </p>
 
 ---
+
 ## Usage
 
 - Clone the repo with: `git clone --recursive https://github.com/cryptoscamdb/api.cryptoscamdb.org.git`
