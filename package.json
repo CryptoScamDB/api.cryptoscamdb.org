@@ -34,8 +34,6 @@
     "prettier:diff": "prettier --write --config ./.prettierrc --list-different \"src/**/*.ts\"",
     "tscheck": "tsc --noEmit --project tsconfig.json",
     "tslint": "tslint --project .",
-    "precommit": "lint-staged",
-    "postcommit": "git update-index --again",
     "contributors:add": "all-contributors add",
     "contributors:generate": "all-contributors generate"
   },
@@ -98,5 +96,11 @@
       "prettier --write --config ./.prettierrc --config-precedence file-override",
       "git add"
     ]
+  },
+  "husky": {
+    "hooks": {
+      "post-commit": "git update-index --again",
+      "pre-commit": "lint-staged"
+    }
   }
 }
