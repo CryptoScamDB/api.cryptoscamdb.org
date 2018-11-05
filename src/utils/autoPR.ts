@@ -1,13 +1,15 @@
 import { safeDump } from 'js-yaml';
-import * as gitProcess from './classes/github.class';
+import gitProcess from '../classes/github.class';
 import config from './config';
 
 export const autoPR = async (input: any, githubKey: string): Promise<any> => {
     return new Promise(async (resolve, reject) => {
-        const process = new gitProcess(githubKey);
-        const fork = await process.fork(
-            config.autoPR.repository.username + '/' + config.autoPR.repository.repository,
-            githubKey
+        const process = <any>new gitProcess(githubKey);
+        const fork = <any>(
+            await process.fork(
+                config.autoPR.repository.username + '/' + config.autoPR.repository.repository,
+                githubKey
+            )
         );
         let pr;
         try {
