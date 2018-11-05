@@ -266,8 +266,7 @@ export const accountLookup = (address, url, endpoint) => {
         debug(
             'Looking up ' + address + ' at url: ' + url + address + ' and endpoint - ' + endpoint
         );
-        request(url + address, { json: true }, (err, response, body) => {
-            //debug('body.endpoint = ' + endpoint + ' - ' + JSON.stringify(body, null, 4))
+        request(url + address, { json: true, timeout: 2.5 * 1000 }, (err, response, body) => {
             if (err) {
                 reject({
                     success: false,

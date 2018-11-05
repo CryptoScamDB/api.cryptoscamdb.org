@@ -64,361 +64,436 @@ router.get('/v1/abusereport/:domain', (req, res) => {
 
 /* Check address/domain/ip endpoints */
 router.get('/v1/check/:search', async (req, res) => {
-    if (req.query) {
-        if (req.query.coin) {
-            if (req.query.coin.toLowerCase() === 'eth') {
-                /* Searched for a eth address */
-                const retJson = await addressCheck(req.params.search, 'eth');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            } else if (req.query.coin.toLowerCase() === 'etc') {
-                /* Searched for a etc address */
-                const retJson = await addressCheck(req.params.search, 'etc');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            } else if (req.query.coin.toLowerCase() === 'btc') {
-                /* Searched for a btc address */
-                const retJson = await addressCheck(req.params.search, 'btc');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            } else if (req.query.coin.toLowerCase() === 'bch') {
-                /* Searched for a bch address */
-                const retJson = await addressCheck(req.params.search, 'bch');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            } else if (req.query.coin.toLowerCase() === 'ltc') {
-                /* Searched for a ltc address */
-                const retJson = await addressCheck(req.params.search, 'ltc');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            } else {
-                res.json({
-                    input: req.params.search,
-                    success: false,
-                    result: 'We do not support the queried coin yet.',
-                    coin: req.query.chain
-                });
-            }
-        }
-    }
-    if (/^0x?[0-9A-Fa-f]{40,42}$/.test(req.params.search)) {
-        /* Searched for an eth/etc address */
-        const ethAccountBalance = await (() => {
-            return new Promise(async (resolve, reject) => {
-                config.coins.forEach(async each => {
-                    if (each.ticker === 'eth') {
-                        const returned = flatten(
-                            await accountLookup(
-                                req.params.search,
-                                each.addressLookUp,
-                                each.addressEndpoint
-                            )
-                        );
-                        if (returned.success === false) {
-                            reject(0);
-                        } else {
-                            const ethBalance = returned['body.' + each.addressEndpoint];
-                            if (ethBalance === undefined) {
-                                resolve(-1);
-                            } else {
-                                resolve(ethBalance);
-                            }
-                        }
-                    }
-                });
-            });
-        })();
-
-        const etcAccountBalance = await (() => {
-            return new Promise(async (resolve, reject) => {
-                config.coins.forEach(async each => {
-                    if (each.ticker === 'etc') {
-                        const returned = flatten(
-                            await accountLookup(
-                                req.params.search,
-                                each.addressLookUp,
-                                each.addressEndpoint
-                            )
-                        );
-                        if (returned.success === false) {
-                            reject(0);
-                        } else {
-                            const etcBalance = returned['body.' + each.addressEndpoint];
-                            if (etcBalance === undefined) {
-                                resolve(-1);
-                            } else {
-                                resolve(etcBalance);
-                            }
-                        }
-                    }
-                });
-            });
-        })();
-        if (ethAccountBalance === -1) {
-            res.json({
-                input: req.params.search,
-                success: false,
-                message: 'Unable to find account balance for Bitcoin. Using Bitcoin Cash instead.',
-                result: await addressCheck(req.params.search, 'etc')
-            });
-        } else if (etcAccountBalance === -1) {
-            res.json({
-                input: req.params.search,
-                success: false,
-                message: 'Unable to find account balance for Bitcoin Cash. Using Bitcoin instead.',
-                result: await addressCheck(req.params.search, 'eth')
-            });
-        } else if (ethAccountBalance > etcAccountBalance) {
+    if (req.query.coin) {
+        if (req.query.coin.toLowerCase() === 'eth') {
             /* Searched for a eth address */
             const retJson = await addressCheck(req.params.search, 'eth');
-            retJson.input = req.params.search;
-            res.json(retJson);
-        } else if (etcAccountBalance > ethAccountBalance) {
+            res.json({ status: true, input: req.params.search, coin: 'eth', result: retJson });
+        } else if (req.query.coin.toLowerCase() === 'etc') {
             /* Searched for a etc address */
             const retJson = await addressCheck(req.params.search, 'etc');
-            retJson.input = req.params.search;
-            res.json(retJson);
-        } else if (etcAccountBalance === 0 && ethAccountBalance === 0) {
-            /* No balance in eth/etc, defaulting to eth */
-            const retJson = await addressCheck(req.params.search, 'eth');
-            retJson.input = req.params.search;
-            res.json(retJson);
-        }
-    } else if (/((?:.eth)|(?:.luxe)|(?:.test))$/.test(req.params.search)) {
-        /* Searched for an ENS name */
-        if (!config.lookups.ENS.enabled || !config.lookups.ENS.provider) {
+            res.json({ status: true, input: req.params.search, coin: 'etc', result: retJson });
+        } else if (req.query.coin.toLowerCase() === 'btc') {
+            /* Searched for a btc address */
+            const retJson = await addressCheck(req.params.search, 'btc');
+            res.json({ status: true, input: req.params.search, coin: 'btc', result: retJson });
+        } else if (req.query.coin.toLowerCase() === 'bch') {
+            /* Searched for a bch address */
+            const retJson = await addressCheck(req.params.search, 'bch');
+            res.json({ status: true, input: req.params.search, coin: 'bch', result: retJson });
+        } else if (req.query.coin.toLowerCase() === 'ltc') {
+            /* Searched for a ltc address */
+            const retJson = await addressCheck(req.params.search, 'ltc');
+            res.json({ status: true, input: req.params.search, coin: 'ltc', result: retJson });
+        } else {
             res.json({
                 input: req.params.search,
                 success: false,
-                type: 'ens',
-                message: 'This api server is not configured to support ENS lookups.'
-            });
-        } else {
-            if (/(?=([(a-z0-9A-Z)]{7,100})(?=(.eth|.luxe|.test|.xyz)$))/.test(req.params.search)) {
-                try {
-                    const address = await ensResolve.resolve(
-                        req.params.search,
-                        config.lookups.ENS.provider
-                    );
-                    if (address === '0x0000000000000000000000000000000000000000') {
-                        // If lookup failed, try again one more time, then return err;
-                        const secondaddress = await ensResolve.resolve(
-                            req.params.search,
-                            config.lookups.ENS.provider
-                        );
-                        if (secondaddress === '0x0000000000000000000000000000000000000000') {
-                            debug('Issue resolving ENS name: ' + req.params.search);
-                            res.json({
-                                success: false,
-                                message: 'Failed to resolve ENS name due to network errors.'
-                            });
-                        } else {
-                            const retJson = await addressCheck(secondaddress, 'eth');
-                            retJson.address = secondaddress;
-                            retJson.type = 'ens';
-                            retJson.validRoot = true;
-                            retJson.input = req.params.search;
-                            res.json(retJson);
-                        }
-                    } else {
-                        const retJson = await addressCheck(address, 'eth');
-                        retJson.address = address;
-                        retJson.type = 'ens';
-                        retJson.validRoot = true;
-                        retJson.input = req.params.search;
-                        res.json(retJson);
-                    }
-                } catch (e) {
-                    debug('Issue resolving ENS name: ' + req.params.search);
-                    res.json({
-                        success: false,
-                        message: e
-                    });
-                }
-            } else {
-                res.json({
-                    input: req.params.search,
-                    success: false,
-                    type: 'ens',
-                    validRoot: false,
-                    message: 'Invalid ENS name'
-                });
-            }
-        }
-    } else if (/^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(req.params.search)) {
-        /* Searched for an btc/bch address */
-        if (
-            /^((bitcoincash:)?(q|p)[a-z0-9]{41})|^((BITCOINCASH:)?(Q|P)[A-Z0-9]{41})$/.test(
-                req.params.search
-            )
-        ) {
-            /* Searched for a bch address */
-            const retJson = await addressCheck(req.params.search, 'bch');
-            retJson.input = req.params.search;
-            res.json(retJson);
-        } else {
-            const btcAccountBalance = await (() => {
-                return new Promise(async (resolve, reject) => {
-                    config.coins.forEach(async each => {
-                        if (each.ticker === 'btc') {
-                            const returned = flatten(
-                                await accountLookup(
-                                    req.params.search,
-                                    each.addressLookUp,
-                                    each.addressEndpoint
-                                )
-                            );
-                            if (returned.success === false) {
-                                reject(0);
-                            } else {
-                                const btcBalance = returned['body.' + each.addressEndpoint];
-                                if (btcBalance === undefined) {
-                                    resolve(-1);
-                                } else {
-                                    resolve(btcBalance);
-                                }
-                            }
-                        }
-                    });
-                });
-            })();
-
-            const bchAccountBalance = await (() => {
-                return new Promise(async (resolve, reject) => {
-                    config.coins.forEach(async each => {
-                        if (each.ticker === 'bch') {
-                            const returned = flatten(
-                                await accountLookup(
-                                    req.params.search,
-                                    each.addressLookUp,
-                                    each.addressEndpoint
-                                )
-                            );
-                            if (returned.success === false) {
-                                reject(0);
-                            } else {
-                                const bchBalance = returned['body.' + each.addressEndpoint];
-                                if (bchBalance === undefined) {
-                                    resolve(-1);
-                                } else {
-                                    resolve(bchBalance);
-                                }
-                            }
-                        }
-                    });
-                });
-            })();
-            if (btcAccountBalance === -1) {
-                res.json({
-                    input: req.params.search,
-                    success: false,
-                    message:
-                        'Unable to find account balance for Bitcoin. Using Bitcoin Cash instead.',
-                    result: await addressCheck(req.params.search, 'bch')
-                });
-            } else if (bchAccountBalance === -1) {
-                res.json({
-                    input: req.params.search,
-                    success: false,
-                    message:
-                        'Unable to find account balance for Bitcoin Cash. Using Bitcoin instead.',
-                    result: await addressCheck(req.params.search, 'btc')
-                });
-            } else if (btcAccountBalance > bchAccountBalance) {
-                /* Searched for a btc address */
-                const retJson = await addressCheck(req.params.search, 'btc');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            } else if (bchAccountBalance > btcAccountBalance) {
-                /* Searched for a bch address */
-                const retJson = await addressCheck(req.params.search, 'bch');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            } else if (bchAccountBalance === 0 && btcAccountBalance === 0) {
-                /* No balance in btc/bch, defaulting to btc */
-                const retJson = await addressCheck(req.params.search, 'btc');
-                retJson.input = req.params.search;
-                res.json(retJson);
-            }
-        }
-    } else if (/^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(req.params.search)) {
-        /* Searched for a ltc address */
-        const retJson = await addressCheck(req.params.search, 'ltc');
-        retJson.input = req.params.search;
-        res.json(retJson);
-    } else if (
-        /[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/.test(
-            req.params.search
-        )
-    ) {
-        /* Searched for a domain */
-        const whitelistURL = db
-            .read()
-            .verified.find(
-                entry =>
-                    (url.parse(req.params.search).hostname || req.params.search) ===
-                    url.parse(entry.url).hostname
-            );
-        const blacklistURL = db
-            .read()
-            .scams.find(
-                entry =>
-                    (url.parse(req.params.search).hostname || req.params.search) ===
-                    entry.getHostname()
-            );
-        if (whitelistURL) {
-            res.json({
-                success: true,
-                result: 'verified',
-                type: 'domain',
-                entries: [whitelistURL]
-            });
-        } else if (blacklistURL) {
-            res.json({
-                success: true,
-                result: 'blocked',
-                type: 'domain',
-                entries: [blacklistURL]
-            });
-        } else {
-            res.json({
-                success: true,
-                result: 'neutral',
-                type: 'domain',
-                entries: []
-            });
-        }
-    } else if (
-        /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$|^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$|^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/.test(
-            req.params.search
-        )
-    ) {
-        /* Searched for an ip address */
-        const blacklistIP = Object.keys(db.read().index.ips).filter(
-            ip => req.params.search.toLowerCase() === ip.toLowerCase()
-        );
-        if (blacklistIP.length > 0) {
-            res.json({
-                success: true,
-                result: 'blocked',
-                type: 'ip',
-                entries: blacklistIP
-            });
-        } else {
-            res.json({
-                success: true,
-                result: 'neutral',
-                type: 'ip',
-                entries: []
+                message: 'We do not support the queried coin yet.',
+                coin: req.query.chain
             });
         }
     } else {
-        res.json({
-            input: req.params.search,
-            success: false,
-            message:
-                'Incorrect search type (must be a btc/bch/eth/etc/ltc address / ip address / URL)'
-        });
+        /* Query was not specified */
+        if (/^0x?[0-9A-Fa-f]{40,42}$/.test(req.params.search)) {
+            /* Searched for an eth/etc address */
+            const ethAccountBalance = await (() => {
+                return new Promise(async (resolve, reject) => {
+                    config.coins.forEach(async each => {
+                        if (each.ticker === 'eth') {
+                            const returned = flatten(
+                                await accountLookup(
+                                    req.params.search,
+                                    each.addressLookUp,
+                                    each.addressEndpoint
+                                )
+                            );
+                            if (returned.success === false) {
+                                reject(0);
+                            } else {
+                                const end = 'body.' + each.addressEndpoint;
+                                const ethBalance = returned[end];
+                                if (ethBalance === undefined) {
+                                    resolve(-1);
+                                } else {
+                                    resolve(ethBalance);
+                                }
+                            }
+                        }
+                    });
+                });
+            })();
+
+            const etcAccountBalance = await (() => {
+                return new Promise(async (resolve, reject) => {
+                    config.coins.forEach(async each => {
+                        if (each.ticker === 'etc') {
+                            const returned = flatten(
+                                await accountLookup(
+                                    req.params.search,
+                                    each.addressLookUp,
+                                    each.addressEndpoint
+                                )
+                            );
+                            if (returned.success === false) {
+                                reject(0);
+                            } else {
+                                const end = 'body.' + each.addressEndpoint;
+                                const etcBalance = returned[end];
+                                if (etcBalance === undefined) {
+                                    resolve(-1);
+                                } else {
+                                    resolve(etcBalance);
+                                }
+                            }
+                        }
+                    });
+                });
+            })();
+            if (ethAccountBalance === -1 || etcAccountBalance === -1) {
+                if (ethAccountBalance === -1) {
+                    const retJson = await addressCheck(req.params.search, 'eth');
+                    res.json({
+                        success: retJson.success,
+                        input: req.params.search,
+                        coin: 'eth',
+                        message: 'Unable to find account balance for ETH. Using ETC instead.',
+                        result: retJson
+                    });
+                } else if (etcAccountBalance === -1) {
+                    const retJson = await addressCheck(req.params.search, 'etc');
+                    res.json({
+                        success: retJson.success,
+                        input: req.params.search,
+                        coin: 'etc',
+                        message: 'Unable to find account balance for ETC. Using ETH instead.',
+                        result: retJson
+                    });
+                }
+            } else {
+                if (ethAccountBalance > etcAccountBalance) {
+                    /* Searched for a eth address */
+                    const retJson = await addressCheck(req.params.search, 'eth');
+                    res.json({
+                        success: true,
+                        input: req.params.search,
+                        coin: 'eth',
+                        result: retJson
+                    });
+                } else if (etcAccountBalance > ethAccountBalance) {
+                    /* Searched for a etc address */
+                    const retJson = await addressCheck(req.params.search, 'etc');
+                    res.json({
+                        success: true,
+                        input: req.params.search,
+                        coin: 'etc',
+                        result: retJson
+                    });
+                } else if (etcAccountBalance === 0 && ethAccountBalance === 0) {
+                    /* No balance in eth/etc, defaulting to eth */
+                    const retJson = await addressCheck(req.params.search, 'eth');
+                    res.json({
+                        success: true,
+                        input: req.params.search,
+                        coin: 'eth',
+                        result: retJson
+                    });
+                }
+            }
+        } else if (/((?:.eth)|(?:.luxe)|(?:.test))$/.test(req.params.search)) {
+            /* Searched for an ENS name */
+            if (!config.lookups.ENS.enabled || !config.lookups.ENS.provider) {
+                res.json({
+                    input: req.params.search,
+                    success: false,
+                    coin: 'eth',
+                    type: 'ens',
+                    message: 'This api server is not configured to support ENS lookups.'
+                });
+            } else {
+                if (
+                    /(?=([(a-z0-9A-Z)]{7,100})(?=(.eth|.luxe|.test|.xyz)$))/.test(req.params.search)
+                ) {
+                    try {
+                        const address = await ensResolve.resolve(
+                            req.params.search,
+                            config.lookups.ENS.provider
+                        );
+                        if (address === '0x0000000000000000000000000000000000000000') {
+                            // If lookup failed, try again one more time, then return err;
+                            const secondaddress = await ensResolve.resolve(
+                                req.params.search,
+                                config.lookups.ENS.provider
+                            );
+                            if (secondaddress === '0x0000000000000000000000000000000000000000') {
+                                debug('Issue resolving ENS name: ' + req.params.search);
+                                res.json({
+                                    success: false,
+                                    message: 'Failed to resolve ENS name due to network errors.'
+                                });
+                            } else {
+                                const retJson = await addressCheck(secondaddress, 'eth');
+                                retJson.address = secondaddress;
+                                retJson.address = address;
+                                res.json({
+                                    success: true,
+                                    input: req.params.search,
+                                    coin: 'eth',
+                                    type: 'ens',
+                                    validRoot: true,
+                                    result: retJson
+                                });
+                            }
+                        } else {
+                            const retJson = await addressCheck(address, 'eth');
+                            retJson.address = address;
+                            res.json({
+                                success: true,
+                                input: req.params.search,
+                                coin: 'eth',
+                                type: 'ens',
+                                validRoot: true,
+                                result: retJson
+                            });
+                        }
+                    } catch (e) {
+                        debug('Issue resolving ENS name: ' + req.params.search);
+                        res.json({
+                            success: false,
+                            message: e
+                        });
+                    }
+                } else {
+                    res.json({
+                        success: false,
+                        input: req.params.search,
+                        coin: 'eth',
+                        type: 'ens',
+                        validRoot: false,
+                        message: 'Invalid ENS name'
+                    });
+                }
+            }
+        } else if (/^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(req.params.search)) {
+            /* Searched for an btc/bch address */
+            if (
+                /^((bitcoincash:)?(q|p)[a-z0-9]{41})|^((BITCOINCASH:)?(Q|P)[A-Z0-9]{41})$/.test(
+                    req.params.search
+                )
+            ) {
+                /* Searched for a bch address */
+                const retJson = await addressCheck(req.params.search, 'bch');
+                retJson.input = req.params.search;
+                res.json(retJson);
+            } else {
+                const btcAccountBalance = await (() => {
+                    return new Promise(async (resolve, reject) => {
+                        config.coins.forEach(async each => {
+                            if (each.ticker === 'btc') {
+                                const returned = flatten(
+                                    await accountLookup(
+                                        req.params.search,
+                                        each.addressLookUp,
+                                        each.addressEndpoint
+                                    )
+                                );
+                                if (returned.success === false) {
+                                    reject(0);
+                                } else {
+                                    const end = 'body.' + each.addressEndpoint;
+                                    const btcBalance = returned[end];
+                                    if (btcBalance === undefined) {
+                                        resolve(-1);
+                                    } else {
+                                        resolve(btcBalance);
+                                    }
+                                }
+                            }
+                        });
+                    });
+                })();
+
+                const bchAccountBalance = await (() => {
+                    return new Promise(async (resolve, reject) => {
+                        config.coins.forEach(async each => {
+                            if (each.ticker === 'bch') {
+                                const returned = flatten(
+                                    await accountLookup(
+                                        req.params.search,
+                                        each.addressLookUp,
+                                        each.addressEndpoint
+                                    )
+                                );
+                                if (returned.success === false) {
+                                    reject(0);
+                                } else {
+                                    const end = 'body.' + each.addressEndpoint;
+                                    const bchBalance = returned[end];
+                                    if (bchBalance === undefined) {
+                                        resolve(-1);
+                                    } else {
+                                        resolve(bchBalance);
+                                    }
+                                }
+                            }
+                        });
+                    });
+                })();
+                console.log(btcAccountBalance + ' compared with: ' + bchAccountBalance);
+                if (btcAccountBalance === -1 || bchAccountBalance === -1) {
+                    if (btcAccountBalance === -1) {
+                        const retJson = await addressCheck(req.params.search, 'bch');
+                        res.json({
+                            input: req.params.search,
+                            success: retJson.status,
+                            coin: 'bch',
+                            message:
+                                'Unable to find account balance for Bitcoin. Using Bitcoin Cash instead.',
+                            result: retJson
+                        });
+                    } else if (bchAccountBalance === -1) {
+                        const retJson = await addressCheck(req.params.search, 'btc');
+                        res.json({
+                            input: req.params.search,
+                            success: retJson.status,
+                            coin: 'btc',
+                            message:
+                                'Unable to find account balance for Bitcoin Cash. Using Bitcoin instead.',
+                            result: retJson
+                        });
+                    }
+                } else {
+                    if (btcAccountBalance > bchAccountBalance) {
+                        /* Searched for a btc address */
+                        const retJson = await addressCheck(req.params.search, 'btc');
+                        res.json({
+                            success: retJson.success,
+                            input: req.params.search,
+                            coin: 'btc',
+                            result: retJson
+                        });
+                    } else if (bchAccountBalance > btcAccountBalance) {
+                        /* Searched for a bch address */
+                        const retJson = await addressCheck(req.params.search, 'bch');
+                        res.json({
+                            success: retJson.success,
+                            input: req.params.search,
+                            coin: 'bch',
+                            result: retJson
+                        });
+                    } else if (
+                        (bchAccountBalance === 0 && btcAccountBalance === 0) ||
+                        btcAccountBalance === bchAccountBalance
+                    ) {
+                        /* No balance in btc/bch, defaulting to btc */
+                        const retJson = await addressCheck(req.params.search, 'btc');
+                        res.json({
+                            success: retJson.success,
+                            input: req.params.search,
+                            coin: 'btc',
+                            result: retJson
+                        });
+                    }
+                }
+            }
+        } else if (/^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(req.params.search)) {
+            /* Searched for a ltc address */
+            const retJson = await addressCheck(req.params.search, 'ltc');
+            res.json({
+                success: retJson.success,
+                input: req.params.search,
+                coin: 'ltc',
+                result: retJson
+            });
+        } else if (
+            /[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/.test(
+                req.params.search
+            )
+        ) {
+            /* Searched for a domain */
+            const whitelistURL = db
+                .read()
+                .verified.find(
+                    entry =>
+                        (url.parse(req.params.search).hostname || req.params.search) ===
+                        url.parse(entry.url).hostname
+                );
+            const blacklistURL = db
+                .read()
+                .scams.find(
+                    entry =>
+                        (url.parse(req.params.search).hostname || req.params.search) ===
+                        entry.getHostname()
+                );
+            if (whitelistURL) {
+                res.json({
+                    input: req.params.search,
+                    success: true,
+                    result: {
+                        status: 'verified',
+                        type: 'domain',
+                        entries: [whitelistURL]
+                    }
+                });
+            } else if (blacklistURL) {
+                res.json({
+                    input: req.params.search,
+                    success: true,
+                    result: {
+                        status: 'blocked',
+                        type: 'domain',
+                        entries: [blacklistURL]
+                    }
+                });
+            } else {
+                res.json({
+                    input: req.params.search,
+                    success: true,
+                    result: {
+                        status: 'neutral',
+                        type: 'domain',
+                        entries: []
+                    }
+                });
+            }
+        } else if (
+            /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$|^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$|^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/.test(
+                req.params.search
+            )
+        ) {
+            /* Searched for an ip address */
+            const blacklistIP = Object.keys(db.read().index.ips).filter(
+                ip => req.params.search.toLowerCase() === ip.toLowerCase()
+            );
+            if (blacklistIP.length > 0) {
+                res.json({
+                    input: req.params.search,
+                    success: true,
+                    result: {
+                        status: 'neutral',
+                        type: 'ip',
+                        entries: blacklistIP
+                    }
+                });
+            } else {
+                res.json({
+                    input: req.params.search,
+                    success: true,
+                    result: {
+                        status: 'neutral',
+                        type: 'ip',
+                        entries: []
+                    }
+                });
+            }
+        } else {
+            res.json({
+                input: req.params.search,
+                success: false,
+                message:
+                    'Incorrect search type (must be a btc/bch/eth/etc/ltc address / ip address / URL)'
+            });
+        }
     }
 });
 
@@ -440,24 +515,30 @@ router.get('/v1/price/:coin', async (req, res) => {
             } else {
                 res.json({
                     success: false,
-                    result: `Coin ${coin} is not supported by this app\'s configuration`,
+                    message: `Coin ${coin} is not supported by this app\'s configuration`,
                     coin
                 });
             }
         } else {
             res.json({
                 success: false,
-                result: `There are no coins supported in this app\'s configuration`,
+                message: `There are no coins supported in this app\'s configuration`,
                 coin
             });
         }
     } else {
-        res.json({ success: false, result: `You did not input a coin type.` });
+        res.json({
+            success: false,
+            message: `You did not input a coin type.`
+        });
     }
 });
 
 router.get('/*', (req, res) =>
-    res.json({ success: false, message: 'This is an invalid api endpoint.' })
+    res.json({
+        success: false,
+        message: 'This is an invalid api endpoint.'
+    })
 );
 
 /* Incoming user reports */
@@ -565,12 +646,12 @@ router.post('/v1/report', async (req, res) => {
                                     res.json({
                                         success: true,
                                         url: result.url,
-                                        newEntry
+                                        result: newEntry
                                     });
                                 } else {
                                     res.json({
                                         success: true,
-                                        newEntry
+                                        result: newEntry
                                     });
                                 }
                             } else {
@@ -589,7 +670,10 @@ router.post('/v1/report', async (req, res) => {
                     });
                 }
             } else {
-                res.json({ success: false, message: 'This is an invalid API Key.' });
+                res.json({
+                    success: false,
+                    message: 'This is an invalid API Key.'
+                });
             }
         } else {
             res.json({
@@ -640,7 +724,6 @@ router.post('/v1/report', async (req, res) => {
 /* Incoming Github webhook attempt */
 router.post('/update/', (req, res) => {
     let body = '';
-
     req.setEncoding('utf8');
     req.on('data', chunk => (body += chunk));
     req.on('end', () => github.webhook(req, res, body));
