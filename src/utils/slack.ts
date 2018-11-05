@@ -11,13 +11,13 @@ export const sendReport = (report: any): Promise<any> => {
     return new Promise((resolve, reject) => {
         if (config.apiKeys.Slack_Webhook) {
             let message = '';
-            if (report.reportType == 'generalDomainReport') {
+            if (report.reportType === 'generalDomainReport') {
                 message += '*Domain*: ';
                 message += report.args.domain || '(none)';
                 message += '\n';
                 message += '*Reason*: ';
                 message += report.args.reason || '(none)';
-            } else if (report.reportType == 'generalAddressReport') {
+            } else if (report.reportType === 'generalAddressReport') {
                 message += '*Address*: ';
                 if (report.args.address) {
                     message += '<https://etherscan.io/address/' + report.args.address + '|';
@@ -29,10 +29,10 @@ export const sendReport = (report: any): Promise<any> => {
                 message += '\n';
                 message += '*Reason*: ';
                 message += report.args.reason || '(none)';
-            } else if (report.reportType == 'uniqueReport') {
+            } else if (report.reportType === 'uniqueReport') {
                 message += '*Report*: ';
                 message += report.args.unique || '(none)';
-            } else if (report.reportType == 'urgentDomainReport') {
+            } else if (report.reportType === 'urgentDomainReport') {
                 message += '*Domain*: ';
                 message += report.args.domain || '(none)';
                 message += '\n';
@@ -57,7 +57,7 @@ export const sendReport = (report: any): Promise<any> => {
                 } else {
                     message += '(none)';
                 }
-            } else if (report.reportType == 'urgentMessageAddressReport') {
+            } else if (report.reportType === 'urgentMessageAddressReport') {
                 message += '*Reason*: ';
                 message += report.args.message || '(none)';
                 message += '\n';
@@ -82,7 +82,7 @@ export const sendReport = (report: any): Promise<any> => {
                 } else {
                     message += '(none)';
                 }
-            } else if (report.reportType == 'urgentDomainAddressReport') {
+            } else if (report.reportType === 'urgentDomainAddressReport') {
                 message += '*Reason*: ';
                 message += report.args.message || '(none)';
                 message += '\n';

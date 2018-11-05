@@ -8,6 +8,10 @@ import createDictionary from '@cryptoscamdb/array-object-dictionary';
 import Scam from '../classes/scam.class';
 import * as Debug from 'debug';
 import Entry from '../models/entry';
+import EntryWrapper from '../models/entrywrapper';
+import Coins from '../models/coins';
+import { priceLookup } from './lookup';
+import * as autoPR from './autoPR';
 
 const debug = Debug('db');
 
@@ -27,6 +31,10 @@ interface Database {
         inactives: Scam[];
         actives: Scam[];
     };
+    prices: {
+        cryptos: Coins[];
+    };
+    reported: EntryWrapper[];
 }
 
 /* Define empty database structure */
@@ -42,7 +50,11 @@ const db: Database = {
         ips: [],
         inactives: [],
         actives: []
-    }
+    },
+    prices: {
+        cryptos: []
+    },
+    reported: []
 };
 
 /* Read entries from yaml files and load them into DB object */
@@ -120,15 +132,17 @@ export const updateIndex = async (): Promise<void> => {
 
 /* Write DB on exit */
 export const exitHandler = (): void => {
-    console.log('Cleaning up...');
     fs.writeFileSync('./cache.db', serialijse.serialize(db));
-    console.log('Exited.');
 };
 
 export const init = async (): Promise<void> => {
     await readEntries();
+    await module.exports.priceUpdate();
     await updateIndex();
     await module.exports.persist();
+    if (config.interval.priceLookup > 0) {
+        setInterval(module.exports.priceUpdate, config.interval.priceLookup);
+    }
     if (config.interval.databasePersist > 0) {
         setInterval(module.exports.persist, config.interval.databasePersist);
     }
@@ -149,4 +163,111 @@ export const write = (scamUrl, data): void => {
 export const persist = async (): Promise<void> => {
     debug('Persisting cache...');
     await fs.writeFile('./cache.db', serialijse.serialize(db));
+};
+
+export const priceUpdate = async (): Promise<void> => {
+    debug('Updating price...');
+    config.coins.forEach(async each => {
+        const ret = await priceLookup(each.priceSource, each.priceEndpoint);
+        const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
+        debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
+        db.prices.cryptos.push({
+            ticker: each.ticker,
+            price: priceUSD
+        });
+    });
+};
+
+export const createPR = async (): Promise<void> => {
+    if (db.reported.length < 1 || db.reported === undefined) {
+        // Do nothing; empty reported cache
+    } else {
+        debug(db.reported.length + ' entries found in report cache.');
+        db.reported.forEach(async entry => {
+            try {
+                const successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
+                if (successStatus.success) {
+                    if (successStatus.url) {
+                        // Success
+                        debug('Removing entry from report list');
+                        db.reported = db.reported.filter(el => {
+                            return el !== entry;
+                        });
+                        debug('Url entry ' + successStatus.url + ' removed from the cache.');
+                    } else {
+                        // Success
+                        debug('Removing entry from report list.');
+                        db.reported = db.reported.filter(el => {
+                            return el !== entry;
+                        });
+                        debug('Entry removed from the cache.');
+                    }
+                } else {
+                    // Failure
+                    debug('Entry could not be removed from the cache.');
+                }
+            } catch (e) {
+                // Failure
+                debug('Github server err in removing entry: ' + e);
+            }
+        });
+    }
+};
+
+export const addReport = async (entry: EntryWrapper) => {
+    // Adding new entry to the reported section.
+    try {
+        db.reported.push(entry);
+    } catch (e) {
+        return { success: false, error: e };
+    }
+
+    if (entry.data.url) {
+        return { success: true, url: entry.data.url, newEntry: entry };
+    } else {
+        return { success: true, newEntry: entry };
+    }
+};
+
+export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
+    if (db.reported.find(el => el !== entry)) {
+        return true;
+    } else {
+        return false;
+    }
+};
+
+export const checkDuplicate = async (entry: Entry): Promise<any> => {
+    if (entry.addresses) {
+        entry.addresses.forEach(address => {
+            if (db.index.addresses.find(blacklistedaddr => blacklistedaddr === address)) {
+                return { duplicate: true, type: 'Blacklisted address already exists.' };
+            }
+            if (db.index.whitelistAddresses.find(whitelistAddr => whitelistAddr === address)) {
+                return { duplicate: true, type: 'Whitelisted address already exists.' };
+            }
+        });
+    }
+
+    if (entry.url || entry.name) {
+        if (entry.url) {
+            if (db.scams.find(scam => scam.url === entry.url)) {
+                return { duplicate: true, type: 'Blacklisted url already exists.' };
+            }
+            if (db.verified.find(verified => verified.url === entry.url)) {
+                return { duplicate: true, type: 'Whitelisted url already exists.' };
+            }
+        }
+
+        if (entry.name) {
+            if (db.scams.find(scam => scam.name === entry.name)) {
+                return { duplicate: true, type: 'Blacklisted name already exists.' };
+            }
+            if (db.verified.find(verified => verified.name === entry.name)) {
+                return { duplicate: true, type: 'Whitelisted name already exists.' };
+            }
+        }
+        return { duplicate: false, type: 'Valid entry.' };
+    }
+    return { duplicate: false, type: 'Valid entry.' };
 };
