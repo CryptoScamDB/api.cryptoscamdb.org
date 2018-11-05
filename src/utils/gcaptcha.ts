@@ -16,7 +16,7 @@ export const verifyResponse = (response: string): Promise<any> => {
                     '&response=' +
                     encodeURIComponent(response),
                 { json: true },
-                (err, response, body) => {
+                (err, res, body) => {
                     if (err) {
                         reject(err);
                     } else {

@@ -31,7 +31,7 @@
     "test:autopr": "ts-node tests/testautopr --trace-warnings",
     "test:ens": "ts-node tests/testensresolve --trace-warnings",
     "clean": "rimraf cache.db node_modules data config.json",
-    "prettier:diff": "prettier --write --config ./.prettierrc --list-different 'src/**/*.ts'",
+    "prettier:diff": "prettier --write --config ./.prettierrc --list-different \"src/**/*.ts\"",
     "tscheck": "tsc --noEmit --project tsconfig.json",
     "tslint": "tslint --project .",
     "precommit": "lint-staged",

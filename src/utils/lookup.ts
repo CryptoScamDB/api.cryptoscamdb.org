@@ -269,9 +269,15 @@ export const accountLookup = (address, url, endpoint) => {
         request(url + address, { json: true }, (err, response, body) => {
             //debug('body.endpoint = ' + endpoint + ' - ' + JSON.stringify(body, null, 4))
             if (err) {
-                reject({ success: false, err: err });
+                reject({
+                    success: false,
+                    err
+                });
             } else {
-                resolve({ success: true, body: body });
+                resolve({
+                    success: true,
+                    body
+                });
             }
         });
     });

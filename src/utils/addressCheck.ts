@@ -4,15 +4,18 @@ import Entry from '../models/entry';
 
 const debug = Debug('router-utils');
 
-interface jsonRet {
+interface JsonRet {
     success: boolean;
     result: string;
     type: string;
     chain: string;
     entries?: Entry;
+    input?: string;
+    address?: string;
+    validRoot?: boolean;
 }
 
-export default (params: string, chain: string): jsonRet => {
+export default (params: string, chain: string): JsonRet => {
     debug('Starting addressCheck - ' + params + ' - ' + chain);
     const whitelistAddress = Object.keys(db.read().index.whitelistAddresses).find(
         address => params.toLowerCase() === address.toLowerCase()
@@ -25,7 +28,7 @@ export default (params: string, chain: string): jsonRet => {
             success: true,
             result: 'whitelisted',
             type: 'address',
-            chain: chain,
+            chain,
             entries: db.read().index.whitelistAddresses[whitelistAddress]
         };
     } else if (blacklistAddress) {
@@ -33,7 +36,7 @@ export default (params: string, chain: string): jsonRet => {
             success: true,
             result: 'blocked',
             type: 'address',
-            chain: chain,
+            chain,
             entries: db.read().index.addresses[blacklistAddress]
         };
     } else {
@@ -41,7 +44,7 @@ export default (params: string, chain: string): jsonRet => {
             success: true,
             result: 'neutral',
             type: 'address',
-            chain: chain
+            chain
         };
     }
 };

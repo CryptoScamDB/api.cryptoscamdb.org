@@ -68,28 +68,28 @@ router.get('/v1/check/:search', async (req, res) => {
         if (req.query.coin) {
             if (req.query.coin.toLowerCase() === 'eth') {
                 /* Searched for a eth address */
-                let retJson = await addressCheck(req.params.search, 'eth');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'eth');
+                retJson.input = req.params.search;
                 res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'etc') {
                 /* Searched for a etc address */
-                let retJson = await addressCheck(req.params.search, 'etc');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'etc');
+                retJson.input = req.params.search;
                 res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'btc') {
                 /* Searched for a btc address */
-                let retJson = await addressCheck(req.params.search, 'btc');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'btc');
+                retJson.input = req.params.search;
                 res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'bch') {
                 /* Searched for a bch address */
-                let retJson = await addressCheck(req.params.search, 'bch');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'bch');
+                retJson.input = req.params.search;
                 res.json(retJson);
             } else if (req.query.coin.toLowerCase() === 'ltc') {
                 /* Searched for a ltc address */
-                let retJson = await addressCheck(req.params.search, 'ltc');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'ltc');
+                retJson.input = req.params.search;
                 res.json(retJson);
             } else {
                 res.json({
@@ -103,11 +103,11 @@ router.get('/v1/check/:search', async (req, res) => {
     }
     if (/^0x?[0-9A-Fa-f]{40,42}$/.test(req.params.search)) {
         /* Searched for an eth/etc address */
-        let ethAccountBalance = await (function() {
+        const ethAccountBalance = await (() => {
             return new Promise(async (resolve, reject) => {
                 config.coins.forEach(async each => {
                     if (each.ticker === 'eth') {
-                        let returned = flatten(
+                        const returned = flatten(
                             await accountLookup(
                                 req.params.search,
                                 each.addressLookUp,
@@ -117,7 +117,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         if (returned.success === false) {
                             reject(0);
                         } else {
-                            let ethBalance = returned['body.' + each.addressEndpoint];
+                            const ethBalance = returned['body.' + each.addressEndpoint];
                             if (ethBalance === undefined) {
                                 resolve(-1);
                             } else {
@@ -129,11 +129,11 @@ router.get('/v1/check/:search', async (req, res) => {
             });
         })();
 
-        let etcAccountBalance = await (function() {
+        const etcAccountBalance = await (() => {
             return new Promise(async (resolve, reject) => {
                 config.coins.forEach(async each => {
                     if (each.ticker === 'etc') {
-                        let returned = flatten(
+                        const returned = flatten(
                             await accountLookup(
                                 req.params.search,
                                 each.addressLookUp,
@@ -143,7 +143,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         if (returned.success === false) {
                             reject(0);
                         } else {
-                            let etcBalance = returned['body.' + each.addressEndpoint];
+                            const etcBalance = returned['body.' + each.addressEndpoint];
                             if (etcBalance === undefined) {
                                 resolve(-1);
                             } else {
@@ -170,18 +170,18 @@ router.get('/v1/check/:search', async (req, res) => {
             });
         } else if (ethAccountBalance > etcAccountBalance) {
             /* Searched for a eth address */
-            let retJson = await addressCheck(req.params.search, 'eth');
-            retJson['input'] = req.params.search;
+            const retJson = await addressCheck(req.params.search, 'eth');
+            retJson.input = req.params.search;
             res.json(retJson);
         } else if (etcAccountBalance > ethAccountBalance) {
             /* Searched for a etc address */
-            let retJson = await addressCheck(req.params.search, 'etc');
-            retJson['input'] = req.params.search;
+            const retJson = await addressCheck(req.params.search, 'etc');
+            retJson.input = req.params.search;
             res.json(retJson);
         } else if (etcAccountBalance === 0 && ethAccountBalance === 0) {
             /* No balance in eth/etc, defaulting to eth */
-            let retJson = await addressCheck(req.params.search, 'eth');
-            retJson['input'] = req.params.search;
+            const retJson = await addressCheck(req.params.search, 'eth');
+            retJson.input = req.params.search;
             res.json(retJson);
         }
     } else if (/((?:.eth)|(?:.luxe)|(?:.test))$/.test(req.params.search)) {
@@ -196,41 +196,44 @@ router.get('/v1/check/:search', async (req, res) => {
         } else {
             if (/(?=([(a-z0-9A-Z)]{7,100})(?=(.eth|.luxe|.test|.xyz)$))/.test(req.params.search)) {
                 try {
-                    let address = await ensResolve.resolve(
+                    const address = await ensResolve.resolve(
                         req.params.search,
                         config.lookups.ENS.provider
                     );
                     if (address === '0x0000000000000000000000000000000000000000') {
                         // If lookup failed, try again one more time, then return err;
-                        let address = await ensResolve.resolve(
+                        const secondaddress = await ensResolve.resolve(
                             req.params.search,
                             config.lookups.ENS.provider
                         );
-                        if (address === '0x0000000000000000000000000000000000000000') {
+                        if (secondaddress === '0x0000000000000000000000000000000000000000') {
                             debug('Issue resolving ENS name: ' + req.params.search);
                             res.json({
                                 success: false,
                                 message: 'Failed to resolve ENS name due to network errors.'
                             });
                         } else {
-                            let retJson = await addressCheck(address, 'eth');
-                            retJson['address'] = address;
+                            const retJson = await addressCheck(secondaddress, 'eth');
+                            retJson.address = secondaddress;
                             retJson.type = 'ens';
-                            retJson['validRoot'] = true;
-                            retJson['input'] = req.params.search;
+                            retJson.validRoot = true;
+                            retJson.input = req.params.search;
                             res.json(retJson);
                         }
                     } else {
-                        let retJson = await addressCheck(address, 'eth');
-                        retJson['address'] = address;
+                        const retJson = await addressCheck(address, 'eth');
+                        retJson.address = address;
                         retJson.type = 'ens';
-                        retJson['validRoot'] = true;
-                        retJson['input'] = req.params.search;
+                        retJson.validRoot = true;
+                        retJson.input = req.params.search;
                         res.json(retJson);
                     }
                 } catch (e) {
                     debug('Issue resolving ENS name: ' + req.params.search);
-                    res.json({ success: false, message: e });
+                    res.json({
+                        success: false,
+                        message: e
+                    });
                 }
             } else {
                 res.json({
@@ -250,15 +253,15 @@ router.get('/v1/check/:search', async (req, res) => {
             )
         ) {
             /* Searched for a bch address */
-            let retJson = await addressCheck(req.params.search, 'bch');
-            retJson['input'] = req.params.search;
+            const retJson = await addressCheck(req.params.search, 'bch');
+            retJson.input = req.params.search;
             res.json(retJson);
         } else {
-            let btcAccountBalance = await (function() {
+            const btcAccountBalance = await (() => {
                 return new Promise(async (resolve, reject) => {
                     config.coins.forEach(async each => {
                         if (each.ticker === 'btc') {
-                            let returned = flatten(
+                            const returned = flatten(
                                 await accountLookup(
                                     req.params.search,
                                     each.addressLookUp,
@@ -268,7 +271,7 @@ router.get('/v1/check/:search', async (req, res) => {
                             if (returned.success === false) {
                                 reject(0);
                             } else {
-                                let btcBalance = returned['body.' + each.addressEndpoint];
+                                const btcBalance = returned['body.' + each.addressEndpoint];
                                 if (btcBalance === undefined) {
                                     resolve(-1);
                                 } else {
@@ -280,11 +283,11 @@ router.get('/v1/check/:search', async (req, res) => {
                 });
             })();
 
-            let bchAccountBalance = await (function() {
+            const bchAccountBalance = await (() => {
                 return new Promise(async (resolve, reject) => {
                     config.coins.forEach(async each => {
                         if (each.ticker === 'bch') {
-                            let returned = flatten(
+                            const returned = flatten(
                                 await accountLookup(
                                     req.params.search,
                                     each.addressLookUp,
@@ -294,7 +297,7 @@ router.get('/v1/check/:search', async (req, res) => {
                             if (returned.success === false) {
                                 reject(0);
                             } else {
-                                let bchBalance = returned['body.' + each.addressEndpoint];
+                                const bchBalance = returned['body.' + each.addressEndpoint];
                                 if (bchBalance === undefined) {
                                     resolve(-1);
                                 } else {
@@ -323,25 +326,25 @@ router.get('/v1/check/:search', async (req, res) => {
                 });
             } else if (btcAccountBalance > bchAccountBalance) {
                 /* Searched for a btc address */
-                let retJson = await addressCheck(req.params.search, 'btc');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'btc');
+                retJson.input = req.params.search;
                 res.json(retJson);
             } else if (bchAccountBalance > btcAccountBalance) {
                 /* Searched for a bch address */
-                let retJson = await addressCheck(req.params.search, 'bch');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'bch');
+                retJson.input = req.params.search;
                 res.json(retJson);
             } else if (bchAccountBalance === 0 && btcAccountBalance === 0) {
                 /* No balance in btc/bch, defaulting to btc */
-                let retJson = await addressCheck(req.params.search, 'btc');
-                retJson['input'] = req.params.search;
+                const retJson = await addressCheck(req.params.search, 'btc');
+                retJson.input = req.params.search;
                 res.json(retJson);
             }
         }
     } else if (/^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(req.params.search)) {
         /* Searched for a ltc address */
-        let retJson = await addressCheck(req.params.search, 'ltc');
-        retJson['input'] = req.params.search;
+        const retJson = await addressCheck(req.params.search, 'ltc');
+        retJson.input = req.params.search;
         res.json(retJson);
     } else if (
         /[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/.test(
@@ -423,25 +426,29 @@ router.get('/v1/check/:search', async (req, res) => {
 router.get('/v1/price/:coin', async (req, res) => {
     if (req.params.coin) {
         const coin = req.params.coin.toLowerCase();
-        let cryptos = {};
+        const cryptos = {};
         db.read().prices.cryptos.forEach(dbcoin => {
             cryptos[dbcoin.ticker] = dbcoin.price;
         });
         if (config.coins) {
             if (cryptos && cryptos[coin]) {
-                res.json({ success: true, result: cryptos[coin], coin: coin });
+                res.json({
+                    success: true,
+                    result: cryptos[coin],
+                    coin
+                });
             } else {
                 res.json({
                     success: false,
                     result: `Coin ${coin} is not supported by this app\'s configuration`,
-                    coin: coin
+                    coin
                 });
             }
         } else {
             res.json({
                 success: false,
                 result: `There are no coins supported in this app\'s configuration`,
-                coin: coin
+                coin
             });
         }
     } else {
@@ -459,7 +466,7 @@ router.post('/v1/report', async (req, res) => {
     if (req.query && req.body) {
         if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
             if (isValidApiKey(req.query.apikey)) {
-                let newEntry = req.body;
+                const newEntry = req.body;
                 if (newEntry.addresses || newEntry.name || newEntry.url) {
                     /* Force name/url fields to standard */
                     if (newEntry.name && newEntry.url) {
@@ -481,7 +488,7 @@ router.post('/v1/report', async (req, res) => {
                             .replace('https://', '')
                             .replace('http://', '')
                             .replace('www.', '');
-                        newEntry['url'] = 'http://' + newEntry.name;
+                        newEntry.url = 'http://' + newEntry.name;
                     }
                     if (!newEntry.name && newEntry.url) {
                         newEntry.url = newEntry.url.replace('www.', '');
@@ -494,7 +501,7 @@ router.post('/v1/report', async (req, res) => {
                     }
 
                     /* Checks to make sure there is no duplicate entry already in the db */
-                    let checkAddressesResult = await db.checkDuplicate(newEntry);
+                    const checkAddressesResult = await db.checkDuplicate(newEntry);
                     if (checkAddressesResult.duplicate) {
                         debug(
                             'Duplicate entry: ' +
@@ -502,7 +509,10 @@ router.post('/v1/report', async (req, res) => {
                                 ' - ' +
                                 checkAddressesResult.type
                         );
-                        res.json({ success: false, message: checkAddressesResult.type });
+                        res.json({
+                            success: false,
+                            message: checkAddressesResult.type
+                        });
                     } else {
                         /* Attempt to categorize if name or url exists, but no cat/subcat */
                         if (
@@ -512,30 +522,30 @@ router.post('/v1/report', async (req, res) => {
                         ) {
                             const cat = await categorizeUrl(newEntry);
                             if (cat.categorized && cat.category && cat.subcategory) {
-                                newEntry['category'] = cat.category;
-                                newEntry['subcategory'] = cat.subcategory;
+                                newEntry.category = cat.category;
+                                newEntry.subcategory = cat.subcategory;
                             }
                         }
 
                         /* Determine coin field based on first address input. Lightweight; defaults to most likely. */
                         if (newEntry.addresses && !newEntry.coin) {
                             if (/^0x?[0-9A-Fa-f]{40,42}$/.test(newEntry.addresses[0])) {
-                                newEntry['coin'] = 'eth';
+                                newEntry.coin = 'eth';
                             } else if (
                                 /^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(newEntry.addresses[0])
                             ) {
-                                newEntry['coin'] = 'btc';
+                                newEntry.coin = 'btc';
                             } else if (
                                 /^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(newEntry.addresses[0])
                             ) {
-                                newEntry['coin'] = 'ltc';
+                                newEntry.coin = 'ltc';
                             }
                         }
 
                         /* Determine reporter */
-                        let reporter = apiKeyOwner(req.query.apikey);
-                        newEntry['reporter'] = reporter;
-                        let command = {
+                        const reporter = apiKeyOwner(req.query.apikey);
+                        newEntry.reporter = reporter;
+                        const command = {
                             type: 'ADD',
                             data: newEntry
                         };
@@ -549,18 +559,18 @@ router.post('/v1/report', async (req, res) => {
                             });
                         } else {
                             debug('New command created: ' + JSON.stringify(command));
-                            let result = await db.addReport(command);
+                            const result = await db.addReport(command);
                             if (result.success) {
                                 if (result.url) {
                                     res.json({
                                         success: true,
                                         url: result.url,
-                                        newEntry: newEntry
+                                        newEntry
                                     });
                                 } else {
                                     res.json({
                                         success: true,
-                                        newEntry: newEntry
+                                        newEntry
                                     });
                                 }
                             } else {

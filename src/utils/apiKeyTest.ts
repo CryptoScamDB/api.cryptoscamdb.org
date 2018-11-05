@@ -1,11 +1,14 @@
 export const isValidApiKey = (input: string): boolean => {
     // TODO: replace this logic to allow multi-key functionality.
-    if (input === 'TestApiKey') return true;
-    else return false;
+    if (input === 'TestApiKey') {
+        return true;
+    } else {
+        return false;
+    }
 };
 
 export const apiKeyOwner = (input: string): string => {
-    let apiKeys = {
+    const apiKeys = {
         TestApiKey: {
             key: 'TestApiKey',
             name: 'Tester'
@@ -13,7 +16,9 @@ export const apiKeyOwner = (input: string): string => {
     };
 
     if (isValidApiKey(input)) {
-        let index = apiKeys[input];
+        const index = apiKeys[input];
         return index.name;
-    } else return 'Invalid Api Key';
+    } else {
+        return 'Invalid Api Key';
+    }
 };

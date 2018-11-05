@@ -1,4 +1,4 @@
-export default interface configCoin {
+export default interface ConfigCoin {
     ticker: string;
     priceSource: string;
     priceEndpoint: string;

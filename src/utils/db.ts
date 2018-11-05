@@ -10,7 +10,6 @@ import * as Debug from 'debug';
 import Entry from '../models/entry';
 import EntryWrapper from '../models/entrywrapper';
 import Coins from '../models/coins';
-import { copyFileSync } from 'fs-extra';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
 
@@ -169,20 +168,24 @@ export const persist = async (): Promise<void> => {
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
     config.coins.forEach(async each => {
-        let ret = await priceLookup(each.priceSource, each.priceEndpoint);
-        let price = await JSON.parse(JSON.stringify(ret)).USD;
-        debug(each.ticker + ' price in usd: ' + JSON.stringify(price));
-        db.prices.cryptos.push({ ticker: each.ticker, price: price });
+        const ret = await priceLookup(each.priceSource, each.priceEndpoint);
+        const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
+        debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
+        db.prices.cryptos.push({
+            ticker: each.ticker,
+            price: priceUSD
+        });
     });
 };
 
 export const createPR = async (): Promise<void> => {
-    if (db.reported.length < 1 || db.reported == undefined) {
+    if (db.reported.length < 1 || db.reported === undefined) {
+        // Do nothing; empty reported cache
     } else {
         debug(db.reported.length + ' entries found in report cache.');
         db.reported.forEach(async entry => {
             try {
-                let successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
+                const successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
                 if (successStatus.success) {
                     if (successStatus.url) {
                         // Success
