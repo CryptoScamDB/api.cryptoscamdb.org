@@ -5,7 +5,7 @@ import Entry from '../models/entry';
 const debug = Debug('router-utils');
 
 interface JsonRet {
-    success: boolean;
+    success?: boolean;
     status: string;
     type: string;
     coin: string;
@@ -25,7 +25,6 @@ export default (params: string, coin: string): JsonRet => {
     );
     if (whitelistAddress) {
         return {
-            success: true,
             status: 'whitelisted',
             type: 'address',
             coin,
@@ -33,7 +32,6 @@ export default (params: string, coin: string): JsonRet => {
         };
     } else if (blacklistAddress) {
         return {
-            success: true,
             status: 'blocked',
             type: 'address',
             coin,
@@ -41,7 +39,6 @@ export default (params: string, coin: string): JsonRet => {
         };
     } else {
         return {
-            success: true,
             status: 'neutral',
             type: 'address',
             coin,

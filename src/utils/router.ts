@@ -155,7 +155,7 @@ router.get('/v1/check/:search', async (req, res) => {
                 if (ethAccountBalance === -1) {
                     const retJson = await addressCheck(req.params.search, 'eth');
                     res.json({
-                        success: retJson.success,
+                        success: true,
                         input: req.params.search,
                         coin: 'eth',
                         message: 'Unable to find account balance for ETH. Using ETC instead.',
@@ -164,7 +164,7 @@ router.get('/v1/check/:search', async (req, res) => {
                 } else if (etcAccountBalance === -1) {
                     const retJson = await addressCheck(req.params.search, 'etc');
                     res.json({
-                        success: retJson.success,
+                        success: true,
                         input: req.params.search,
                         coin: 'etc',
                         message: 'Unable to find account balance for ETC. Using ETH instead.',
@@ -230,6 +230,7 @@ router.get('/v1/check/:search', async (req, res) => {
                                 debug('Issue resolving ENS name: ' + req.params.search);
                                 res.json({
                                     success: false,
+                                    input: req.params.search,
                                     message: 'Failed to resolve ENS name due to network errors.'
                                 });
                             } else {
@@ -261,6 +262,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         debug('Issue resolving ENS name: ' + req.params.search);
                         res.json({
                             success: false,
+                            input: req.params.search,
                             message: e
                         });
                     }
@@ -340,7 +342,6 @@ router.get('/v1/check/:search', async (req, res) => {
                         });
                     });
                 })();
-                console.log(btcAccountBalance + ' compared with: ' + bchAccountBalance);
                 if (btcAccountBalance === -1 || bchAccountBalance === -1) {
                     if (btcAccountBalance === -1) {
                         const retJson = await addressCheck(req.params.search, 'bch');
@@ -368,7 +369,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         /* Searched for a btc address */
                         const retJson = await addressCheck(req.params.search, 'btc');
                         res.json({
-                            success: retJson.success,
+                            success: true,
                             input: req.params.search,
                             coin: 'btc',
                             result: retJson
@@ -377,7 +378,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         /* Searched for a bch address */
                         const retJson = await addressCheck(req.params.search, 'bch');
                         res.json({
-                            success: retJson.success,
+                            success: true,
                             input: req.params.search,
                             coin: 'bch',
                             result: retJson
@@ -389,7 +390,7 @@ router.get('/v1/check/:search', async (req, res) => {
                         /* No balance in btc/bch, defaulting to btc */
                         const retJson = await addressCheck(req.params.search, 'btc');
                         res.json({
-                            success: retJson.success,
+                            success: true,
                             input: req.params.search,
                             coin: 'btc',
                             result: retJson
@@ -401,7 +402,7 @@ router.get('/v1/check/:search', async (req, res) => {
             /* Searched for a ltc address */
             const retJson = await addressCheck(req.params.search, 'ltc');
             res.json({
-                success: retJson.success,
+                success: true,
                 input: req.params.search,
                 coin: 'ltc',
                 result: retJson
