@@ -484,26 +484,8 @@ router.post('/v1/report', async (req, res) => {
                         newEntry['url'] = 'http://' + newEntry.name;
                     }
                     if (!newEntry.name && newEntry.url) {
-                        newEntry.url =
-                            'http://' +
-                            newEntry.url
-                                .replace('https://', '')
-                                .replace('http://', '')
-                                .replace('www.', '');
-                        newEntry.name = newEntry.url.replace('http://', '');
-                    }
-
-                    /* Attempt to categorize if name or url exists, but no cat/subcat */
-                    if (
-                        (newEntry.name || newEntry.url) &&
-                        !newEntry.category &&
-                        !newEntry.subcategory
-                    ) {
-                        const cat = await categorizeUrl(newEntry);
-                        if (cat.categorized && cat.category && cat.subcategory) {
-                            newEntry['category'] = cat.category;
-                            newEntry['subcategory'] = cat.subcategory;
-                        }
+                        newEntry.url = newEntry.url.replace('www.', '');
+                        newEntry.name = newEntry.url.replace('http://', '').replace('https://', '');
                     }
 
                     /* Cast addresses field as an array */
@@ -511,59 +493,84 @@ router.post('/v1/report', async (req, res) => {
                         newEntry.addresses = [newEntry.addresses];
                     }
 
-                    /* Determine coin field based on first address input. Lightweight; defaults to most likely. */
-                    if (newEntry.addresses && !newEntry.coin) {
-                        if (/^0x?[0-9A-Fa-f]{40,42}$/.test(newEntry.addresses[0])) {
-                            newEntry['coin'] = 'eth';
-                        } else if (
-                            /^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(newEntry.addresses[0])
-                        ) {
-                            newEntry['coin'] = 'btc';
-                        } else if (
-                            /^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(newEntry.addresses[0])
-                        ) {
-                            newEntry['coin'] = 'ltc';
-                        }
-                    }
-
-                    /* Determine reporter */
-                    let reporter = apiKeyOwner(req.query.apikey);
-                    newEntry['reporter'] = reporter;
-                    let command = {
-                        type: 'ADD',
-                        data: newEntry
-                    };
-
-                    // Checks if duplicate POST cmd.
-                    if (await db.checkReport(command)) {
-                        debug('Duplicate command already found in cache.');
-                        res.json({
-                            success: false,
-                            message: 'Duplicate entry already exists in the report cache.'
-                        });
+                    /* Checks to make sure there is no duplicate entry already in the db */
+                    let checkAddressesResult = await db.checkDuplicate(newEntry);
+                    if (checkAddressesResult.duplicate) {
+                        debug(
+                            'Duplicate entry: ' +
+                                JSON.stringify(newEntry) +
+                                ' - ' +
+                                checkAddressesResult.type
+                        );
+                        res.json({ success: false, message: checkAddressesResult.type });
                     } else {
-                        debug('New command created: ' + JSON.stringify(command));
-                        let result = await db.addReport(command);
-                        if (result.success) {
-                            if (result.url) {
-                                res.json({
-                                    success: true,
-                                    url: result.url,
-                                    newEntry: newEntry
-                                });
-                            } else {
-                                res.json({
-                                    success: true,
-                                    newEntry: newEntry
-                                });
+                        /* Attempt to categorize if name or url exists, but no cat/subcat */
+                        if (
+                            (newEntry.name || newEntry.url) &&
+                            !newEntry.category &&
+                            !newEntry.subcategory
+                        ) {
+                            const cat = await categorizeUrl(newEntry);
+                            if (cat.categorized && cat.category && cat.subcategory) {
+                                newEntry['category'] = cat.category;
+                                newEntry['subcategory'] = cat.subcategory;
                             }
-                        } else {
+                        }
+
+                        /* Determine coin field based on first address input. Lightweight; defaults to most likely. */
+                        if (newEntry.addresses && !newEntry.coin) {
+                            if (/^0x?[0-9A-Fa-f]{40,42}$/.test(newEntry.addresses[0])) {
+                                newEntry['coin'] = 'eth';
+                            } else if (
+                                /^([13][a-km-zA-HJ-NP-Z1-9]{25,34})/.test(newEntry.addresses[0])
+                            ) {
+                                newEntry['coin'] = 'btc';
+                            } else if (
+                                /^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(newEntry.addresses[0])
+                            ) {
+                                newEntry['coin'] = 'ltc';
+                            }
+                        }
+
+                        /* Determine reporter */
+                        let reporter = apiKeyOwner(req.query.apikey);
+                        newEntry['reporter'] = reporter;
+                        let command = {
+                            type: 'ADD',
+                            data: newEntry
+                        };
+
+                        /* Checks if duplicate exists in reported cache. */
+                        if (await db.checkReport(command)) {
+                            debug('Duplicate command already found in cache.');
                             res.json({
                                 success: false,
-                                message: 'Failed to add report entry to cache.'
+                                message: 'Duplicate entry already exists in the report cache.'
                             });
-                        }
-                    }
+                        } else {
+                            debug('New command created: ' + JSON.stringify(command));
+                            let result = await db.addReport(command);
+                            if (result.success) {
+                                if (result.url) {
+                                    res.json({
+                                        success: true,
+                                        url: result.url,
+                                        newEntry: newEntry
+                                    });
+                                } else {
+                                    res.json({
+                                        success: true,
+                                        newEntry: newEntry
+                                    });
+                                }
+                            } else {
+                                res.json({
+                                    success: false,
+                                    message: 'Failed to add report entry to cache.'
+                                });
+                            }
+                        } // End duplicate-in-cache check
+                    } // End duplicate-in-db check
                 } else {
                     res.json({
                         success: false,

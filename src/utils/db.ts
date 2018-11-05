@@ -177,11 +177,9 @@ export const priceUpdate = async (): Promise<void> => {
 };
 
 export const createPR = async (): Promise<void> => {
-    debug('Checking if we need to PR.');
     if (db.reported.length < 1 || db.reported == undefined) {
-        debug('Empty report-cache. No need to create a PR.');
     } else {
-        debug('Entries found: ' + db.reported.length);
+        debug(db.reported.length + ' entries found in report cache.');
         db.reported.forEach(async entry => {
             try {
                 let successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
@@ -234,4 +232,39 @@ export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
     } else {
         return false;
     }
+};
+
+export const checkDuplicate = async (entry: Entry): Promise<any> => {
+    if (entry.addresses) {
+        entry.addresses.forEach(address => {
+            if (db.index.addresses.find(blacklistedaddr => blacklistedaddr === address)) {
+                return { duplicate: true, type: 'Blacklisted address already exists.' };
+            }
+            if (db.index.whitelistAddresses.find(whitelistAddr => whitelistAddr === address)) {
+                return { duplicate: true, type: 'Whitelisted address already exists.' };
+            }
+        });
+    }
+
+    if (entry.url || entry.name) {
+        if (entry.url) {
+            if (db.scams.find(scam => scam.url === entry.url)) {
+                return { duplicate: true, type: 'Blacklisted url already exists.' };
+            }
+            if (db.verified.find(verified => verified.url === entry.url)) {
+                return { duplicate: true, type: 'Whitelisted url already exists.' };
+            }
+        }
+
+        if (entry.name) {
+            if (db.scams.find(scam => scam.name === entry.name)) {
+                return { duplicate: true, type: 'Blacklisted name already exists.' };
+            }
+            if (db.verified.find(verified => verified.name === entry.name)) {
+                return { duplicate: true, type: 'Whitelisted name already exists.' };
+            }
+        }
+        return { duplicate: false, type: 'Valid entry.' };
+    }
+    return { duplicate: false, type: 'Valid entry.' };
 };

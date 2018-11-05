@@ -9,11 +9,10 @@ export const autoPR = async (input: any, githubKey: string): Promise<any> => {
             config.autoPR.repository.username + '/' + config.autoPR.repository.repository,
             githubKey
         );
-        let blank;
         let pr;
         try {
             /* Try to commit */
-            blank = await fork.createNew(
+            await fork.createNew(
                 'commands/cmd.yaml',
                 'Added a new entry',
                 safeDump(input, { lineWidth: 99999999, indent: 4 })

@@ -36,11 +36,8 @@ export const update = async (): Promise<void> => {
 };
 
 export const createPR = async (): Promise<void> => {
-    debug('Starting create-pr process...');
     db.createPR();
-
     setInterval(() => {
-        debug('Starting create-pr process...');
         db.createPR();
     }, config.autoPR.interval);
 };
