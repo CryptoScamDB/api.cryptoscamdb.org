@@ -558,8 +558,11 @@ router.get('/v1/balance/:coin/:address', async (req, res) => {
                 .prices.cryptos.findIndex(entry => entry.ticker === req.params.coin.toLowerCase());
             const usdPrice = db.read().prices.cryptos[usdIndex];
             const value = balance * Math.pow(10, Math.round(-1 * decimal));
+            const coin = config.coins.findIndex(entry => entry.ticker === req.params.coin);
+            const blockexplorer = config.coins[coin].addressLookUp;
             res.json({
                 success: true,
+                blockexplorer: blockexplorer + req.params.address,
                 balance: value,
                 usdvalue: usdPrice.price * value
             });
