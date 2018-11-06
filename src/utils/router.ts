@@ -18,7 +18,7 @@ import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
 import * as autoPR from './autoPR';
 import * as ensResolve from './ensResolve';
-import { Z_UNKNOWN } from 'zlib';
+import { balanceLookup } from './balanceLookup';
 
 const debug = Debug('router');
 const router = express.Router();
@@ -151,22 +151,23 @@ router.get('/v1/check/:search', async (req, res) => {
                     });
                 });
             })();
+            debug(ethAccountBalance + ' - ' + etcAccountBalance);
             if (ethAccountBalance === -1 || etcAccountBalance === -1) {
                 if (ethAccountBalance === -1) {
-                    const retJson = await addressCheck(req.params.search, 'eth');
-                    res.json({
-                        success: true,
-                        input: req.params.search,
-                        coin: 'eth',
-                        message: 'Unable to find account balance for ETH. Using ETC instead.',
-                        result: retJson
-                    });
-                } else if (etcAccountBalance === -1) {
                     const retJson = await addressCheck(req.params.search, 'etc');
                     res.json({
                         success: true,
                         input: req.params.search,
                         coin: 'etc',
+                        message: 'Unable to find account balance for ETH. Using ETC instead.',
+                        result: retJson
+                    });
+                } else if (etcAccountBalance === -1) {
+                    const retJson = await addressCheck(req.params.search, 'eth');
+                    res.json({
+                        success: true,
+                        input: req.params.search,
+                        coin: 'eth',
                         message: 'Unable to find account balance for ETC. Using ETH instead.',
                         result: retJson
                     });
@@ -536,6 +537,44 @@ router.get('/v1/price/:coin', async (req, res) => {
     }
 });
 
+router.get('/v1/balance/:coin/:address', async (req, res) => {
+    try {
+        const index = config.coins.findIndex(
+            entry => entry.ticker === req.params.coin.toLowerCase()
+        );
+        const returnedBal = (await balanceLookup(req.params.address, req.params.coin)) as any;
+        if (returnedBal === -1) {
+            res.json({
+                success: false,
+                inputcoin: req.params.coin,
+                inputaddress: req.params.address,
+                message: 'Failed to lookup balance.'
+            });
+        } else {
+            const decimal = Number(config.coins[index].decimal);
+            const balance = Number(returnedBal.balance);
+            const usdIndex = db
+                .read()
+                .prices.cryptos.findIndex(entry => entry.ticker === req.params.coin.toLowerCase());
+            const usdPrice = db.read().prices.cryptos[usdIndex];
+            const value = balance * Math.pow(10, Math.round(-1 * decimal));
+            const coin = config.coins.findIndex(entry => entry.ticker === req.params.coin);
+            const blockexplorer = config.coins[coin].addressLookUp;
+            res.json({
+                success: true,
+                blockexplorer: blockexplorer + req.params.address,
+                balance: value,
+                usdvalue: usdPrice.price * value
+            });
+        }
+    } catch (e) {
+        res.json({
+            success: false,
+            message: e
+        });
+    }
+});
+
 router.get('/*', (req, res) =>
     res.json({
         success: false,
@@ -548,6 +587,7 @@ router.post('/v1/report', async (req, res) => {
     /* API-based reporting */
     if (req.query && req.body) {
         if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
+            debug(req.query.apikey);
             if (isValidApiKey(req.query.apikey)) {
                 const newEntry = req.body;
                 if (newEntry.addresses || newEntry.name || newEntry.url) {
