@@ -193,6 +193,7 @@ export const createPR = async (): Promise<void> => {
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
+                        exitHandler();
                         debug('Url entry ' + successStatus.url + ' removed from the cache.');
                     } else {
                         // Success
@@ -200,6 +201,7 @@ export const createPR = async (): Promise<void> => {
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
+                        exitHandler();
                         debug('Entry removed from the cache.');
                     }
                 } else {
