@@ -123,7 +123,7 @@ export const updateIndex = async (): Promise<void> => {
         ...db.scams
             .filter(entry => entry.path == '/*')
             .map(entry => entry.getHostname().replace('www.', '')),
-        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary[ip].path == '/*')
+        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path == '/*')
     ];
     db.index.whitelist = [
         ...db.verified.map(entry => url.parse(entry.url).hostname.replace('www.', '')),
