@@ -15,6 +15,7 @@ export default class Scam implements Entry {
     coin?: string;
     ip?: string;
     nameservers?: string[];
+    severity?: number;
     statusCode?: number;
     status?: 'Active' | 'Inactive' | 'Offline' | 'Suspended';
     updated?: number;
@@ -30,6 +31,7 @@ export default class Scam implements Entry {
         this.description = scamData.description;
         this.addresses = scamData.addresses;
         this.reporter = scamData.reporter;
+        this.severity = scamData.severity || 1;
         this.coin = scamData.coin;
     }
 

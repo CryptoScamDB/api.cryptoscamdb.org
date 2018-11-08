@@ -7,6 +7,7 @@ export default interface Entry {
     addresses?: string[];
     reporter?: string;
     coin?: string;
+    severity?: number;
     featured?: boolean;
     domain?: string;
 }
