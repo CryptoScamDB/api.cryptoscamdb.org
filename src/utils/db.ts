@@ -30,6 +30,7 @@ interface Database {
         ips: string[];
         inactives: Scam[];
         actives: Scam[];
+        reporters: string[];
     };
     prices: {
         cryptos: Coins[];
@@ -49,7 +50,8 @@ const db: Database = {
         addresses: [],
         ips: [],
         inactives: [],
-        actives: []
+        actives: [],
+        reporters: []
     },
     prices: {
         cryptos: []
@@ -128,6 +130,7 @@ export const updateIndex = async (): Promise<void> => {
     db.index.ips = scamDictionary.ip || [];
     db.index.inactives = db.scams.filter(scam => scam.status !== 'Active');
     db.index.actives = db.scams.filter(scam => scam.status === 'Active');
+    db.index.reporters = scamDictionary.reporter;
 };
 
 /* Write DB on exit */
