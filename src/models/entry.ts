@@ -1,6 +1,7 @@
 export default interface Entry {
     url?: string;
     name?: string;
+    path?: string;
     category?: string;
     subcategory?: string;
     description?: string;
