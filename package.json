@@ -1,6 +1,6 @@
 {
   "name": "@cryptoscamdb/server",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Keeping track of all current cryptocurrency scams in an open-source database",
   "keywords": [
     "crypto",
