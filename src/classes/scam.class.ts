@@ -7,6 +7,7 @@ import Entry from '../models/entry';
 export default class Scam implements Entry {
     url?: string;
     name?: string;
+    path?: string;
     category?: string;
     subcategory?: string;
     description?: string;
@@ -15,6 +16,7 @@ export default class Scam implements Entry {
     coin?: string;
     ip?: string;
     nameservers?: string[];
+    severity?: number;
     statusCode?: number;
     status?: 'Active' | 'Inactive' | 'Offline' | 'Suspended';
     updated?: number;
@@ -30,6 +32,10 @@ export default class Scam implements Entry {
         this.description = scamData.description;
         this.addresses = scamData.addresses;
         this.reporter = scamData.reporter;
+        this.severity = scamData.severity || 1;
+        if (this.path || this.url) {
+            this.path = scamData.path || '/*';
+        }
         this.coin = scamData.coin;
     }
 

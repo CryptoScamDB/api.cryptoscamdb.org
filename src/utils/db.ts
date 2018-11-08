@@ -117,9 +117,13 @@ export const updateIndex = async (): Promise<void> => {
         .filter(entry => entry.featured)
         .sort((a, b) => a.name.localeCompare(b.name));
     db.index.blacklist = [
-        ...db.scams.map(entry => entry.getHostname().replace('www.', '')),
-        ...db.scams.map(entry => entry.getHostname().replace('www.', '')),
-        ...Object.keys(scamDictionary.ip || {})
+        ...db.scams
+            .filter(entry => entry.path == '/*')
+            .map(entry => entry.getHostname().replace('www.', '')),
+        ...db.scams
+            .filter(entry => entry.path == '/*')
+            .map(entry => entry.getHostname().replace('www.', '')),
+        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path == '/*')
     ];
     db.index.whitelist = [
         ...db.verified.map(entry => url.parse(entry.url).hostname.replace('www.', '')),
