@@ -8,6 +8,7 @@ import Entry from '../models/entry';
 export default class Scam implements Entry {
     id?: string;
     url?: string;
+    name?: string;
     type?: string;
     hostname?: string;
     path?: string;
@@ -29,6 +30,7 @@ export default class Scam implements Entry {
     constructor(scamData: Entry = {}) {
         if (scamData) {
             this.id = this.getID(scamData.url);
+            this.name = scamData.name;
             this.url = scamData.url;
             this.category = scamData.category;
             this.subcategory = scamData.subcategory;
