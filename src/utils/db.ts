@@ -73,6 +73,7 @@ export const readEntries = async (): Promise<void> => {
     const cacheExists = await fs.pathExists('./cache.db');
     if (!cacheExists) {
         yaml.safeLoad(scamsFile)
+            .filter(entry => entry.url)
             .map(entry => new Scam(entry))
             .forEach(entry => db.scams.push(entry));
         yaml.safeLoad(verifiedFile).forEach(entry => db.verified.push(entry));
