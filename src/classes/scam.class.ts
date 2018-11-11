@@ -19,6 +19,7 @@ export default class Scam implements Entry {
     reporter?: string;
     coin?: string;
     ip?: string;
+    abusereport?: string;
     nameservers?: string[];
     severity?: number;
     statusCode?: number;

@@ -61,6 +61,7 @@ router.get('/v1/entry/:id', async (req, res) => {
         res.json({ success: false, message: "Couldn't find requested ID" });
     } else {
         entry.lookups = {};
+        entry.abusereport = generateAbuseReport(entry);
         if (config.apiKeys.Google_SafeBrowsing) {
             entry.lookups.Google_SafeBrowsing = await getGoogleSafeBrowsing(entry.url);
         } else {
