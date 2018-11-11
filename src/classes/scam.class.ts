@@ -2,11 +2,15 @@ import { parse } from 'url';
 import * as dns from '@cryptoscamdb/graceful-dns';
 import { lookup, getURLScan, URLScanResponse } from '../utils/lookup';
 import { Response } from 'request';
+import { utils } from 'web3';
 import Entry from '../models/entry';
 
 export default class Scam implements Entry {
+    id?: string;
     url?: string;
     name?: string;
+    type?: string;
+    hostname?: string;
     path?: string;
     category?: string;
     subcategory?: string;
@@ -15,28 +19,36 @@ export default class Scam implements Entry {
     reporter?: string;
     coin?: string;
     ip?: string;
+    abusereport?: string;
     nameservers?: string[];
     severity?: number;
     statusCode?: number;
     status?: 'Active' | 'Inactive' | 'Offline' | 'Suspended';
+    lookups?: any;
     updated?: number;
 
     /* Create new Scam instance */
     constructor(scamData: Entry = {}) {
-        if (scamData.url) {
-            this.name = parse(scamData.url).hostname.replace('www.', '');
+        if (scamData) {
+            this.id = this.getID(scamData.url);
+            this.name = scamData.name;
             this.url = scamData.url;
+            this.category = scamData.category;
+            this.subcategory = scamData.subcategory;
+            this.description = scamData.description;
+            this.addresses = scamData.addresses;
+            this.reporter = scamData.reporter;
+            this.severity = scamData.severity || 1;
+            if (this.path || this.url) {
+                this.path = scamData.path || '/*';
+            }
+            this.coin = scamData.coin;
         }
-        this.category = scamData.category;
-        this.subcategory = scamData.subcategory;
-        this.description = scamData.description;
-        this.addresses = scamData.addresses;
-        this.reporter = scamData.reporter;
-        this.severity = scamData.severity || 1;
-        if (this.path || this.url) {
-            this.path = scamData.path || '/*';
-        }
-        this.coin = scamData.coin;
+    }
+
+    /* Calculate ID of entry */
+    getID(url): string {
+        return utils.sha3(url || 'empty').substring(2, 8);
     }
 
     /* Returns either `false` or a request response */

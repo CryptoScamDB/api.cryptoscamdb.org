@@ -7,7 +7,6 @@ const debug = Debug('config');
 
 export interface Config {
     manual: boolean;
-    announcement: string;
     port: number;
     interval: {
         cacheExpiration: number;
@@ -64,7 +63,6 @@ if (!fs.existsSync('./config.json')) {
     /* Config wasn't found; return default config and show configuration page */
     configObject = {
         manual: false,
-        announcement: null,
         port: 5111,
         interval: {
             cacheExpiration: -1,

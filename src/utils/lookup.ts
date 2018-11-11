@@ -171,8 +171,8 @@ export const getGoogleSafeBrowsing = (url): Promise<SafeBrowsingResponse | boole
                 },
                 json: {
                     client: {
-                        clientId: 'EtherScamDB',
-                        clientVersion: '3.0.0'
+                        clientId: 'CryptoScamDB',
+                        clientVersion: '1.0.0'
                     },
                     threatInfo: {
                         threatTypes: [

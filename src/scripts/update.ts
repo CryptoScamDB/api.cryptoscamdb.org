@@ -14,8 +14,6 @@ if (!process.send) {
     throw new Error('This script can only run as a child process');
 } /* Script must be called from another process */
 
-// process.once('close', () => process.exit(1));	/* Close if parent process exits */
-
 (async () => {
     const cacheExists = await fs.pathExists('./cache.db');
     if (!cacheExists) {
@@ -44,8 +42,10 @@ if (!process.send) {
 
                 /* Return updated data to parent process */
                 process.send({
+                    id: scam.id,
                     url: scam.url,
                     name: scam.name,
+                    hostname: scam.getHostname(),
                     ip: scam.ip,
                     category: scam.category,
                     subcategory: scam.subcategory,

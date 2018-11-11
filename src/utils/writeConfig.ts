@@ -50,7 +50,6 @@ export default async (options: ConfigOptions): Promise<void> => {
     /* Define config */
     const config = {
         port: parseInt(options.port, 10),
-        announcement: null,
         interval: {
             cacheExpiration: 1000 * 60 * parseInt(options['cache-expiration'], 10),
             cacheRenewCheck: 1000 * 60 * parseInt(options['cache-renewal'], 10),
