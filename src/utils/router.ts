@@ -82,7 +82,7 @@ router.get('/v1/domain/:domain', async (req, res) => {
         .read()
         .verified.filter(entry => url.parse(entry.url).hostname == req.params.domain);
     res.json({
-        success: true,
+        success: badEntries.length > 0 || goodEntries.length > 0,
         result: [
             ...badEntries.map(entry => {
                 entry.type = 'scam';
