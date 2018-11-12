@@ -646,8 +646,8 @@ router.get('/*', (req, res) =>
 router.put('/v1/report', async (req, res) => {
     /* API-based reporting */
     debug('req headers: ' + JSON.stringify(req.headers));
-    if (req.context) {
-        debug('req: ' + JSON.stringify(req.context));
+    if (req) {
+        debug('req: ' + JSON.stringify(req));
     }
     if (req.headers['x-api-key']) {
         const reportKey: string = req.headers['x-api-key'].toString();
