@@ -120,7 +120,7 @@ const limiter = new Bottleneck({
 /* Do a URL lookup */
 export const lookup = limiter.wrap(url => {
     return new Promise<request.Response | undefined>(resolve => {
-        debug('Requesting ' + url + '...');
+        //debug('Requesting ' + url + '...');
         request(
             {
                 url,
