@@ -602,13 +602,17 @@ router.get('/*', (req, res) =>
     })
 );
 
-/* Incoming user reports */
-router.post('/v1/report', async (req, res) => {
+router.put('/v1/report', async (req, res) => {
     /* API-based reporting */
-    if (req.query && req.body) {
+    debug('req headers: ' + JSON.stringify(req.headers));
+    if (req.context) {
+        debug('req: ' + JSON.stringify(req.context));
+    }
+    if (req.headers['x-api-key']) {
+        const reportKey: string = req.headers['x-api-key'].toString();
         if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
-            debug(req.query.apikey);
-            if (isValidApiKey(req.query.apikey)) {
+            debug(reportKey + '- typeof: ' + typeof reportKey);
+            if (isValidApiKey(reportKey)) {
                 const newEntry = req.body;
                 if (newEntry.addresses || newEntry.name || newEntry.url) {
                     /* Force name/url fields to standard */
@@ -686,7 +690,7 @@ router.post('/v1/report', async (req, res) => {
                         }
 
                         /* Determine reporter */
-                        const reporter = apiKeyOwner(req.query.apikey);
+                        const reporter = apiKeyOwner(reportKey);
                         newEntry.reporter = reporter;
                         const command = {
                             type: 'ADD',
@@ -744,32 +748,26 @@ router.post('/v1/report', async (req, res) => {
             });
         }
     } else {
-        /* Webapp/App-based Reporting */
-        if (
-            config.apiKeys.Google_Captcha &&
-            config.apiKeys.Slack_Webhook &&
-            req.body &&
-            req.body.args &&
-            req.body.args.captcha
-        ) {
-            const isValidCaptcha = await captcha.verifyResponse(req.body.args.captcha);
-            if (isValidCaptcha) {
-                slack.sendReport(req.body);
-                res.json({
-                    success: true
-                });
-            } else {
-                res.json({
-                    success: false,
-                    message: 'Invalid captcha response provided'
-                });
-            }
-        } else if (
-            config.apiKeys.Slack_Webhook &&
-            req.body &&
-            req.body.args &&
-            req.body.args.captcha
-        ) {
+        res.json({
+            success: false,
+            message:
+                'API key required for this method. Please include an x-api-key field in the request header.'
+        });
+    }
+});
+
+/* Incoming user reports */
+router.post('/v1/report', async (req, res) => {
+    /* Webapp/App-based Reporting */
+    if (
+        config.apiKeys.Google_Captcha &&
+        config.apiKeys.Slack_Webhook &&
+        req.body &&
+        req.body.args &&
+        req.body.args.captcha
+    ) {
+        const isValidCaptcha = await captcha.verifyResponse(req.body.args.captcha);
+        if (isValidCaptcha) {
             slack.sendReport(req.body);
             res.json({
                 success: true
@@ -777,9 +775,19 @@ router.post('/v1/report', async (req, res) => {
         } else {
             res.json({
                 success: false,
-                message: 'No captcha response provided'
+                message: 'Invalid captcha response provided'
             });
         }
+    } else if (config.apiKeys.Slack_Webhook && req.body && req.body.args && req.body.args.captcha) {
+        slack.sendReport(req.body);
+        res.json({
+            success: true
+        });
+    } else {
+        res.json({
+            success: false,
+            message: 'No captcha response provided'
+        });
     }
 });
 
