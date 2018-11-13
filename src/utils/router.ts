@@ -56,7 +56,7 @@ router.get('/v1/featured', (req, res) =>
 );
 router.get('/v1/scams', (req, res) => res.json({ success: true, result: db.read().scams }));
 router.get('/v1/entry/:id', async (req, res) => {
-    const entry = db.read().scams.find(entry => entry.id == req.params.id);
+    const entry = db.read().scams.find(ent => ent.id === req.params.id);
     if (!entry) {
         res.json({ success: false, message: "Couldn't find requested ID" });
     } else {
@@ -77,10 +77,10 @@ router.get('/v1/entry/:id', async (req, res) => {
     }
 });
 router.get('/v1/domain/:domain', async (req, res) => {
-    const badEntries = db.read().scams.filter(entry => entry.hostname == req.params.domain);
+    const badEntries = db.read().scams.filter(entry => entry.hostname === req.params.domain);
     const goodEntries = db
         .read()
-        .verified.filter(entry => url.parse(entry.url).hostname == req.params.domain);
+        .verified.filter(entry => url.parse(entry.url).hostname === req.params.domain);
     res.json({
         success: badEntries.length > 0 || goodEntries.length > 0,
         result: [
@@ -479,15 +479,15 @@ router.get('/v1/check/:search', async (req, res) => {
                 .read()
                 .verified.find(
                     entry =>
-                        (url.parse(req.params.search).hostname || req.params.search) ===
-                        url.parse(entry.url).hostname
+                        (url.parse(req.params.search.toLowerCase()).hostname ||
+                            req.params.search.toLowerCase()) === url.parse(entry.url).hostname
                 );
             const blacklistURL = db
                 .read()
                 .scams.find(
                     entry =>
-                        (url.parse(req.params.search).hostname || req.params.search) ===
-                        entry.getHostname()
+                        (url.parse(req.params.search.toLowerCase()).hostname ||
+                            req.params.search.toLowerCase()) === entry.getHostname()
                 );
             if (whitelistURL) {
                 res.json({

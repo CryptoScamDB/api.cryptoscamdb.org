@@ -119,12 +119,12 @@ export const updateIndex = async (): Promise<void> => {
         .sort((a, b) => a.name.localeCompare(b.name));
     db.index.blacklist = [
         ...db.scams
-            .filter(entry => entry.path == '/*')
+            .filter(entry => entry.path === '/*')
             .map(entry => entry.getHostname().replace('www.', '')),
         ...db.scams
-            .filter(entry => entry.path == '/*')
+            .filter(entry => entry.path === '/*')
             .map(entry => entry.getHostname().replace('www.', '')),
-        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path == '/*')
+        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path === '/*')
     ];
     db.index.whitelist = [
         ...db.verified.map(entry => url.parse(entry.url).hostname.replace('www.', '')),
@@ -175,6 +175,7 @@ export const persist = async (): Promise<void> => {
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
+    db.prices.cryptos = [];
     config.coins.forEach(async each => {
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
         const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
