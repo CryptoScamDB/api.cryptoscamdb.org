@@ -5,10 +5,7 @@ import config from './config';
 export const autoPR = async (input: any, githubKey: string): Promise<any> => {
     return new Promise(async (resolve, reject) => {
         const process = new gitProcess(githubKey) as any;
-        const fork = (await process.fork(
-            config.autoPR.repository.username + '/' + config.autoPR.repository.repository,
-            githubKey
-        )) as any;
+        const fork = (await process.fork('CryptoScamDB/blacklist', githubKey)) as any;
         let pr;
         try {
             /* Try to commit */
@@ -22,15 +19,12 @@ export const autoPR = async (input: any, githubKey: string): Promise<any> => {
         }
         try {
             /* Try to pr */
-            pr = await process.pr(
-                config.autoPR.repository.username + '/' + config.autoPR.repository.repository,
-                {
-                    title: 'Added a new entry',
-                    body: 'Added a new entry from cryptoscamdb.org/report endpoint',
-                    head: fork.getOwner() + ':' + fork.getBranch(),
-                    base: 'master'
-                }
-            );
+            pr = await process.pr('CryptoScamDB/blacklist', {
+                title: 'Added a new entry',
+                body: 'Added a new entry from cryptoscamdb.org/report endpoint',
+                head: fork.getOwner() + ':' + fork.getBranch(),
+                base: 'master'
+            });
             await fork.delete();
             if (pr.url) {
                 resolve({ success: true, url: pr.url });

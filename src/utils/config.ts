@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as dns from '@cryptoscamdb/graceful-dns';
 import * as Debug from 'debug';
-import configCoin from '../models/configcoin';
 
 const debug = Debug('config');
 
@@ -29,10 +28,6 @@ export interface Config {
     autoPR: {
         enabled: boolean;
         interval?: number;
-        repository?: {
-            username?: string;
-            repository?: string;
-        };
     };
     lookups: {
         DNS: {
@@ -49,12 +44,7 @@ export interface Config {
             maxConcurrent?: number;
             timeoutAfter?: number;
         };
-        ENS: {
-            enabled: boolean;
-            provider?: string;
-        };
     };
-    coins: configCoin[];
 }
 
 let configObject: Config;
@@ -68,7 +58,7 @@ if (!fs.existsSync('./config.json')) {
             cacheExpiration: -1,
             cacheRenewCheck: -1,
             databasePersist: -1,
-            priceLookup: 300000
+            priceLookup: -1
         },
         apiKeys: {
             Google_SafeBrowsing: undefined,
@@ -78,34 +68,19 @@ if (!fs.existsSync('./config.json')) {
             Google_Captcha: undefined,
             Slack_Webhook: undefined
         },
-        autoPull: { enabled: false },
+        autoPull: {
+            enabled: false
+        },
         autoPR: {
-            enabled: true,
-            interval: 60000,
-            repository: {
-                username: 'CryptoScamDB',
-                repository: 'blacklist'
-            }
+            enabled: false
         },
         lookups: {
             DNS: {
                 IP: { enabled: false },
                 NS: { enabled: false }
             },
-            HTTP: { enabled: false },
-            ENS: { enabled: false }
-        },
-        coins: [
-            {
-                ticker: 'eth',
-                priceSource: 'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD',
-                priceEndpoint: 'USD',
-                addressLookUp:
-                    'https://api.etherscan.io/api?module=account&action=balance&tag=latest&address=',
-                addressEndpoint: 'result',
-                decimal: 0
-            }
-        ]
+            HTTP: { enabled: false }
+        }
     };
 } else {
     /* Config was found */
