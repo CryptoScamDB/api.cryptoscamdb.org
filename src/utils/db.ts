@@ -192,34 +192,36 @@ export const createPR = async (): Promise<void> => {
         // Do nothing; empty reported cache
     } else {
         debug(db.reported.length + ' entries found in report cache.');
+        debug(JSON.stringify(db.reported, null, 2));
         db.reported.forEach(async entry => {
             try {
+                debug('Trying to remove entry from report cache');
                 const successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
                 if (successStatus.success) {
                     if (successStatus.url) {
                         // Success
-                        debug('Removing entry from report list');
+                        debug('Removing entry from report cache');
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
                         exitHandler();
-                        debug('Url entry ' + successStatus.url + ' removed from the cache.');
+                        debug('Url entry removed from report cache.');
                     } else {
                         // Success
-                        debug('Removing entry from report list.');
+                        debug('Removing entry from report cache.');
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
                         exitHandler();
-                        debug('Entry removed from the cache.');
+                        debug('Entry removed from report cache.');
                     }
                 } else {
                     // Failure
-                    debug('Entry could not be removed from the cache.');
+                    debug('Entry could not be removed from report cache.');
                 }
             } catch (e) {
                 // Failure
-                debug('Github server err in removing entry: ' + e);
+                debug('Github server err in removing entry from report cache: ' + e);
             }
         });
     }
@@ -242,6 +244,12 @@ export const addReport = async (entry: EntryWrapper) => {
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
     if (db.reported.find(el => el !== entry)) {
+        debug(
+            'Entry: ' +
+                JSON.stringify(el, null, 2) +
+                ' matches input entry: ' +
+                JSON.stringify(entry, null, 2)
+        );
         return true;
     } else {
         return false;
