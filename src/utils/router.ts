@@ -3,12 +3,9 @@ import * as Debug from 'debug';
 import * as express from 'express';
 import * as db from './db';
 import generateAbuseReport from './abusereport';
-import * as checkForPhishing from 'eth-phishing-detect';
-import * as dateFormat from 'dateformat';
 import * as url from 'url';
 import config from './config';
 import * as github from './github';
-import * as isIpPrivate from 'private-ip';
 import * as captcha from './gcaptcha';
 import * as slack from './slack';
 import { getGoogleSafeBrowsing, getURLScan, getVirusTotal, accountLookup } from './lookup';
@@ -16,7 +13,6 @@ import addressCheck from './addressCheck';
 import { flatten } from 'flat';
 import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
-import * as autoPR from './autoPR';
 import * as ensResolve from './ensResolve';
 import { balanceLookup } from './balanceLookup';
 
@@ -645,16 +641,20 @@ router.get('/*', (req, res) =>
 
 router.put('/v1/report', async (req, res) => {
     /* API-based reporting */
-    debug('req headers: ' + JSON.stringify(req.headers));
-    if (req.body) {
-        debug('req.body: ' + JSON.stringify(req.body));
-    }
     if (req.headers['x-api-key']) {
         const reportKey: string = req.headers['x-api-key'].toString();
         if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
-            debug(reportKey + '- typeof: ' + typeof reportKey);
-            if (isValidApiKey(reportKey)) {
+            if (reportKey) {
                 const newEntry = req.body;
+                // Delete apiKey and apiKeyID from newEntry.
+                const reportKeyID = newEntry.apiid;
+                if (newEntry.apikey) {
+                    delete newEntry.apikey;
+                }
+                if (newEntry.apiid) {
+                    delete newEntry.apiid;
+                }
+
                 if (newEntry.addresses || newEntry.name || newEntry.url) {
                     /* Force name/url fields to standard */
                     if (newEntry.name && newEntry.url) {
@@ -731,8 +731,16 @@ router.put('/v1/report', async (req, res) => {
                         }
 
                         /* Determine reporter */
-                        const reporter = apiKeyOwner(reportKey);
-                        newEntry.reporter = reporter;
+                        const reporterLookup = await apiKeyOwner(
+                            reportKey,
+                            reportKeyID,
+                            config.apiKeys.AWS
+                        );
+                        if (reporterLookup) {
+                            newEntry.reporter = reporterLookup;
+                        } else {
+                            newEntry.reporter = 'unknown';
+                        }
                         const command = {
                             type: 'ADD',
                             data: newEntry
