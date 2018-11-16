@@ -104,6 +104,7 @@ router.get('/v1/actives', (req, res) =>
 );
 router.get('/v1/blacklist', (req, res) => res.json(db.read().index.blacklist));
 router.get('/v1/whitelist', (req, res) => res.json(db.read().index.whitelist));
+router.get('/v1/reportedlist', (req, res) => res.json(db.read().reported));
 router.get('/v1/abusereport/:domain', (req, res) => {
     const result = db
         .read()
