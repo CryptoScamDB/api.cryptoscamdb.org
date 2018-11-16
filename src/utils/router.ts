@@ -737,7 +737,7 @@ router.put('/v1/report', async (req, res) => {
                         }
 
                         /* Determine reporter */
-                        const reporterLookup = await apiKeyOwner(reportKey, reportKeyID);
+                        const reporterLookup = await apiKeyOwner(reportKey);
                         if (reporterLookup) {
                             newEntry.reporter = reporterLookup;
                         } else {

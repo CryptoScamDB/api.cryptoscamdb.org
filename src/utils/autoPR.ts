@@ -18,7 +18,7 @@ export const autoPR = async (input: any, githubKey: string): Promise<any> => {
                 safeDump(input, { lineWidth: 99999999, indent: 4 })
             );
         } catch (e) {
-            reject(e);
+            resolve(e);
         }
         try {
             /* Try to pr */
