@@ -243,12 +243,12 @@ export const addReport = async (entry: EntryWrapper) => {
 };
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
-    if (db.reported.find(el => el !== entry)) {
+    if (db.reported.findIndex(el => el === entry) >= 0) {
         debug(
-            'Entry: ' +
-                JSON.stringify(el, null, 2) +
-                ' matches input entry: ' +
-                JSON.stringify(entry, null, 2)
+            'Input entry ' +
+                JSON.stringify(entry, null, 2) +
+                ' matches ' +
+                JSON.stringify(db.reported[db.reported.findIndex(el => el === entry)], null, 2)
         );
         return true;
     } else {
