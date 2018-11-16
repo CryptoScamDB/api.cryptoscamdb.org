@@ -192,7 +192,6 @@ export const createPR = async (): Promise<void> => {
         // Do nothing; empty reported cache
     } else {
         debug(db.reported.length + ' entries found in report cache.');
-        debug(JSON.stringify(db.reported, null, 2));
         db.reported.forEach(async entry => {
             try {
                 debug('Trying to remove entry from report cache');
@@ -241,7 +240,7 @@ export const addReport = async (entry: EntryWrapper) => {
 };
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
-    if (db.reported.findIndex(el => el === entry) >= 0) {
+    if (db.reported.find(el => el !== entry)) {
         debug(
             'Input entry ' +
                 JSON.stringify(entry, null, 2) +
@@ -250,6 +249,7 @@ export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
         );
         return true;
     } else {
+        debug('Input entry not found in reported');
         return false;
     }
 };
