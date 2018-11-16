@@ -39,7 +39,7 @@ export const autoPR = async (input: any, githubKey: string): Promise<any> => {
             }
         } catch (e) {
             await fork.delete();
-            reject(e);
+            resolve(e);
         }
     });
 };

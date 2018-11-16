@@ -643,6 +643,12 @@ router.put('/v1/report', async (req, res) => {
     /* API-based reporting */
     if (req.headers['x-api-key']) {
         const reportKey: string = req.headers['x-api-key'].toString();
+        debug(
+            'Incoming report: ' +
+                JSON.stringify(req.body, null, 2) +
+                ' from apikey ' +
+                req.headers['x-api-key']
+        );
         if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
             if (reportKey) {
                 const newEntry = req.body;
@@ -731,11 +737,7 @@ router.put('/v1/report', async (req, res) => {
                         }
 
                         /* Determine reporter */
-                        const reporterLookup = await apiKeyOwner(
-                            reportKey,
-                            reportKeyID,
-                            config.apiKeys.AWS
-                        );
+                        const reporterLookup = await apiKeyOwner(reportKey, reportKeyID);
                         if (reporterLookup) {
                             newEntry.reporter = reporterLookup;
                         } else {
