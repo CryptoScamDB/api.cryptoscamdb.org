@@ -36,9 +36,18 @@ export const update = async (): Promise<void> => {
 };
 
 export const createPR = async (): Promise<void> => {
-    db.createPR();
-    setInterval(() => {
+    try {
         db.createPR();
+    } catch (err) {
+        debug('Error adding new PR:' + err);
+    }
+
+    setInterval(() => {
+        try {
+            db.createPR();
+        } catch (err) {
+            debug('Error adding new PR:' + err);
+        }
     }, config.autoPR.interval);
 };
 
