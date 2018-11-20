@@ -11,7 +11,7 @@ import * as slack from './slack';
 import { getGoogleSafeBrowsing, getURLScan, getVirusTotal, accountLookup } from './lookup';
 import addressCheck from './addressCheck';
 import { flatten } from 'flat';
-import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
+import { apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
 import * as ensResolve from './ensResolve';
 import { balanceLookup } from './balanceLookup';
@@ -654,7 +654,6 @@ router.put('/v1/report', async (req, res) => {
             if (reportKey) {
                 const newEntry = req.body;
                 // Delete apiKey and apiKeyID from newEntry.
-                const reportKeyID = newEntry.apiid;
                 if (newEntry.apikey) {
                     delete newEntry.apikey;
                 }
@@ -738,7 +737,16 @@ router.put('/v1/report', async (req, res) => {
                         }
 
                         /* Determine reporter */
-                        const reporterLookup = await apiKeyOwner(reportKey);
+                        let reporterLookup;
+                        try {
+                            // tslint:disable-next-line:no-var-keyword
+                            reporterLookup = await apiKeyOwner(reportKey);
+                        } catch (e) {
+                            res.json({
+                                success: false,
+                                message: 'Invalid API Key.'
+                            });
+                        }
                         if (reporterLookup) {
                             newEntry.reporter = reporterLookup;
                         } else {
