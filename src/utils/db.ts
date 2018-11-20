@@ -257,10 +257,16 @@ export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
 export const checkDuplicate = async (entry: Entry): Promise<any> => {
     if (entry.addresses) {
         entry.addresses.forEach(address => {
-            if (db.index.addresses.find(blacklistedaddr => blacklistedaddr === address)) {
+            if (
+                Object.keys(db.index.addresses).find(blacklistedaddr => blacklistedaddr === address)
+            ) {
                 return { duplicate: true, type: 'Blacklisted address already exists.' };
             }
-            if (db.index.whitelistAddresses.find(whitelistAddr => whitelistAddr === address)) {
+            if (
+                Object.keys(db.index.whitelistAddresses).find(
+                    whitelistAddr => whitelistAddr === address
+                )
+            ) {
                 return { duplicate: true, type: 'Whitelisted address already exists.' };
             }
         });
