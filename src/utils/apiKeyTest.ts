@@ -19,7 +19,7 @@ export const apiKeyOwner = async (input: string): Promise<any> => {
                     reject('Invalid api key');
                 } else {
                     if (body.body.success !== undefined && body.body.success !== false) {
-                        resolve(JSON.parse(body).body.name);
+                        resolve(body.body.name);
                     } else {
                         resolve('unknown');
                     }

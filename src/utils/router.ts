@@ -739,13 +739,13 @@ router.put('/v1/report', async (req, res) => {
                         /* Determine reporter */
                         let reporterLookup;
                         try {
-                            // tslint:disable-next-line:no-var-keyword
                             reporterLookup = await apiKeyOwner(reportKey);
                         } catch (e) {
                             res.json({
                                 success: false,
                                 message: 'Invalid API Key.'
                             });
+                            return;
                         }
                         if (reporterLookup) {
                             newEntry.reporter = reporterLookup;
