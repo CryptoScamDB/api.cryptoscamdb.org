@@ -120,12 +120,12 @@ export const updateIndex = async (): Promise<void> => {
         .sort((a, b) => a.name.localeCompare(b.name));
     db.index.blacklist = [
         ...db.scams
-            .filter(entry => entry.path == '/*')
+            .filter(entry => entry.path === '/*')
             .map(entry => entry.getHostname().replace('www.', '')),
         ...db.scams
-            .filter(entry => entry.path == '/*')
+            .filter(entry => entry.path === '/*')
             .map(entry => entry.getHostname().replace('www.', '')),
-        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path == '/*')
+        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path === '/*')
     ];
     db.index.whitelist = [
         ...db.verified.map(entry => url.parse(entry.url).hostname.replace('www.', '')),
@@ -177,6 +177,7 @@ export const persist = async (): Promise<void> => {
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
     coins.forEach(async each => {
+    db.prices.cryptos = [];
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
         const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
         debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
@@ -194,32 +195,31 @@ export const createPR = async (): Promise<void> => {
         debug(db.reported.length + ' entries found in report cache.');
         db.reported.forEach(async entry => {
             try {
+                debug('Trying to remove entry from report cache');
                 const successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
                 if (successStatus.success) {
                     if (successStatus.url) {
                         // Success
-                        debug('Removing entry from report list');
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
                         exitHandler();
-                        debug('Url entry ' + successStatus.url + ' removed from the cache.');
+                        debug('Url entry removed from report cache.');
                     } else {
                         // Success
-                        debug('Removing entry from report list.');
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
                         exitHandler();
-                        debug('Entry removed from the cache.');
+                        debug('Entry removed from report cache.');
                     }
                 } else {
                     // Failure
-                    debug('Entry could not be removed from the cache.');
+                    debug('Entry could not be removed from report cache.');
                 }
             } catch (e) {
                 // Failure
-                debug('Github server err in removing entry: ' + e);
+                debug('Github server err in removing entry from report cache: ' + e);
             }
         });
     }
@@ -242,8 +242,15 @@ export const addReport = async (entry: EntryWrapper) => {
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
     if (db.reported.find(el => el !== entry)) {
+        debug(
+            'Input entry ' +
+                JSON.stringify(entry, null, 2) +
+                ' matches ' +
+                JSON.stringify(db.reported[db.reported.findIndex(el => el === entry)], null, 2)
+        );
         return true;
     } else {
+        debug('Input entry not found in reported');
         return false;
     }
 };

@@ -3,12 +3,9 @@ import * as Debug from 'debug';
 import * as express from 'express';
 import * as db from './db';
 import generateAbuseReport from './abusereport';
-import * as checkForPhishing from 'eth-phishing-detect';
-import * as dateFormat from 'dateformat';
 import * as url from 'url';
 import config from './config';
 import * as github from './github';
-import * as isIpPrivate from 'private-ip';
 import * as captcha from './gcaptcha';
 import * as slack from './slack';
 import { getGoogleSafeBrowsing, getURLScan, getVirusTotal, accountLookup } from './lookup';
@@ -16,7 +13,6 @@ import addressCheck from './addressCheck';
 import { flatten } from 'flat';
 import { isValidApiKey, apiKeyOwner } from './apiKeyTest';
 import { categorizeUrl } from './categorize';
-import * as autoPR from './autoPR';
 import * as ensResolve from './ensResolve';
 import { balanceLookup } from './balanceLookup';
 import coins from './endpoints';
@@ -57,7 +53,7 @@ router.get('/v1/featured', (req, res) =>
 );
 router.get('/v1/scams', (req, res) => res.json({ success: true, result: db.read().scams }));
 router.get('/v1/entry/:id', async (req, res) => {
-    const entry = db.read().scams.find(entry => entry.id == req.params.id);
+    const entry = db.read().scams.find(ent => ent.id === req.params.id);
     if (!entry) {
         res.json({ success: false, message: "Couldn't find requested ID" });
     } else {
@@ -78,10 +74,10 @@ router.get('/v1/entry/:id', async (req, res) => {
     }
 });
 router.get('/v1/domain/:domain', async (req, res) => {
-    const badEntries = db.read().scams.filter(entry => entry.hostname == req.params.domain);
+    const badEntries = db.read().scams.filter(entry => entry.hostname === req.params.domain);
     const goodEntries = db
         .read()
-        .verified.filter(entry => url.parse(entry.url).hostname == req.params.domain);
+        .verified.filter(entry => url.parse(entry.url).hostname === req.params.domain);
     res.json({
         success: badEntries.length > 0 || goodEntries.length > 0,
         result: [
@@ -109,6 +105,7 @@ router.get('/v1/actives', (req, res) =>
 );
 router.get('/v1/blacklist', (req, res) => res.json(db.read().index.blacklist));
 router.get('/v1/whitelist', (req, res) => res.json(db.read().index.whitelist));
+router.get('/v1/reportedlist', (req, res) => res.json(db.read().reported));
 router.get('/v1/abusereport/:domain', (req, res) => {
     const result = db
         .read()
@@ -447,15 +444,15 @@ router.get('/v1/check/:search', async (req, res) => {
                 .read()
                 .verified.find(
                     entry =>
-                        (url.parse(req.params.search).hostname || req.params.search) ===
-                        url.parse(entry.url).hostname
+                        (url.parse(req.params.search.toLowerCase()).hostname ||
+                            req.params.search.toLowerCase()) === url.parse(entry.url).hostname
                 );
             const blacklistURL = db
                 .read()
                 .scams.find(
                     entry =>
-                        (url.parse(req.params.search).hostname || req.params.search) ===
-                        entry.getHostname()
+                        (url.parse(req.params.search.toLowerCase()).hostname ||
+                            req.params.search.toLowerCase()) === entry.getHostname()
                 );
             if (whitelistURL) {
                 res.json({
@@ -599,14 +596,28 @@ router.get('/*', (req, res) =>
     })
 );
 
-/* Incoming user reports */
-router.post('/v1/report', async (req, res) => {
+router.put('/v1/report', async (req, res) => {
     /* API-based reporting */
-    if (req.query && req.body) {
+    if (req.headers['x-api-key']) {
+        const reportKey: string = req.headers['x-api-key'].toString();
+        debug(
+            'Incoming report: ' +
+                JSON.stringify(req.body, null, 2) +
+                ' from apikey ' +
+                req.headers['x-api-key']
+        );
         if (config.apiKeys.Github_AccessKey && config.autoPR.enabled) {
-            debug(req.query.apikey);
-            if (isValidApiKey(req.query.apikey)) {
+            if (reportKey) {
                 const newEntry = req.body;
+                // Delete apiKey and apiKeyID from newEntry.
+                const reportKeyID = newEntry.apiid;
+                if (newEntry.apikey) {
+                    delete newEntry.apikey;
+                }
+                if (newEntry.apiid) {
+                    delete newEntry.apiid;
+                }
+
                 if (newEntry.addresses || newEntry.name || newEntry.url) {
                     /* Force name/url fields to standard */
                     if (newEntry.name && newEntry.url) {
@@ -683,8 +694,12 @@ router.post('/v1/report', async (req, res) => {
                         }
 
                         /* Determine reporter */
-                        const reporter = apiKeyOwner(req.query.apikey);
-                        newEntry.reporter = reporter;
+                        const reporterLookup = await apiKeyOwner(reportKey);
+                        if (reporterLookup) {
+                            newEntry.reporter = reporterLookup;
+                        } else {
+                            newEntry.reporter = 'unknown';
+                        }
                         const command = {
                             type: 'ADD',
                             data: newEntry
@@ -741,32 +756,26 @@ router.post('/v1/report', async (req, res) => {
             });
         }
     } else {
-        /* Webapp/App-based Reporting */
-        if (
-            config.apiKeys.Google_Captcha &&
-            config.apiKeys.Slack_Webhook &&
-            req.body &&
-            req.body.args &&
-            req.body.args.captcha
-        ) {
-            const isValidCaptcha = await captcha.verifyResponse(req.body.args.captcha);
-            if (isValidCaptcha) {
-                slack.sendReport(req.body);
-                res.json({
-                    success: true
-                });
-            } else {
-                res.json({
-                    success: false,
-                    message: 'Invalid captcha response provided'
-                });
-            }
-        } else if (
-            config.apiKeys.Slack_Webhook &&
-            req.body &&
-            req.body.args &&
-            req.body.args.captcha
-        ) {
+        res.json({
+            success: false,
+            message:
+                'API key required for this method. Please include an x-api-key field in the request header.'
+        });
+    }
+});
+
+/* Incoming user reports */
+router.post('/v1/report', async (req, res) => {
+    /* Webapp/App-based Reporting */
+    if (
+        config.apiKeys.Google_Captcha &&
+        config.apiKeys.Slack_Webhook &&
+        req.body &&
+        req.body.args &&
+        req.body.args.captcha
+    ) {
+        const isValidCaptcha = await captcha.verifyResponse(req.body.args.captcha);
+        if (isValidCaptcha) {
             slack.sendReport(req.body);
             res.json({
                 success: true
@@ -774,9 +783,19 @@ router.post('/v1/report', async (req, res) => {
         } else {
             res.json({
                 success: false,
-                message: 'No captcha response provided'
+                message: 'Invalid captcha response provided'
             });
         }
+    } else if (config.apiKeys.Slack_Webhook && req.body && req.body.args && req.body.args.captcha) {
+        slack.sendReport(req.body);
+        res.json({
+            success: true
+        });
+    } else {
+        res.json({
+            success: false,
+            message: 'No captcha response provided'
+        });
     }
 });
 

@@ -20,6 +20,7 @@ export interface Config {
         VirusTotal: string;
         Google_Captcha: string;
         Slack_Webhook: string;
+        AWS: string;
     };
     autoPull: {
         enabled: boolean;
@@ -66,7 +67,8 @@ if (!fs.existsSync('./config.json')) {
             Github_AccessKey: undefined,
             VirusTotal: undefined,
             Google_Captcha: undefined,
-            Slack_Webhook: undefined
+            Slack_Webhook: undefined,
+            AWS: undefined
         },
         autoPull: {
             enabled: false
