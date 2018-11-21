@@ -1,10 +1,5 @@
 import * as request from 'request';
 
-export const isValidApiKey = (input: string): boolean => {
-    // TODO: replace this logic to allow multi-key functionality.
-    return true;
-};
-
 export const apiKeyOwner = async (input: string): Promise<any> => {
     return new Promise((resolve, reject) => {
         const options = {
@@ -19,10 +14,15 @@ export const apiKeyOwner = async (input: string): Promise<any> => {
             if (err) {
                 resolve(undefined);
             } else {
-                if (JSON.parse(body).body.success) {
-                    resolve(JSON.parse(body).body.name);
+                body = JSON.parse(body);
+                if (result.statusCode !== 200) {
+                    reject('Invalid api key');
                 } else {
-                    resolve('unknown');
+                    if (body.body.success !== undefined && body.body.success !== false) {
+                        resolve(body.body.name);
+                    } else {
+                        resolve('unknown');
+                    }
                 }
             }
         });
