@@ -296,11 +296,11 @@ export const getCategoryStats = async (): Promise<any> => {
             if (entry.category) {
                 const blank = category.findIndex(en => en.category === entry.category);
                 if (blank >= 0) {
-                    category[blank].occurrences += 1;
+                    category[blank].count += 1;
                 } else {
                     category.push({
                         category: entry.category,
-                        occurrences: 1
+                        count: 1
                     });
                 }
             }
@@ -316,11 +316,11 @@ export const getSubCategoryStats = async (): Promise<any> => {
             if (entry.subcategory) {
                 const blank = subcategory.findIndex(en => en.subcategory === entry.subcategory);
                 if (blank >= 0) {
-                    subcategory[blank].occurrences += 1;
+                    subcategory[blank].count += 1;
                 } else {
                     subcategory.push({
                         subcategory: entry.subcategory,
-                        occurrences: 1
+                        count: 1
                     });
                 }
             }
