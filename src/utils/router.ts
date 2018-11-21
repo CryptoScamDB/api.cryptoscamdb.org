@@ -29,7 +29,7 @@ router.use((req, res, next) => {
 router.get('/', (req, res) =>
     res.redirect('https://documenter.getpostman.com/view/4298426/RzZ7nKcM')
 );
-router.get('/v1/stats', (req, res) =>
+router.get('/v1/stats', async (req, res) =>
     res.json({
         success: true,
         result: {
@@ -43,7 +43,9 @@ router.get('/v1/stats', (req, res) =>
             reporters: Object.keys(db.read().index.reporters).map(reporter => ({
                 name: reporter,
                 count: db.read().index.reporters[reporter].length
-            }))
+            })),
+            categories: await db.getCategoryStats(),
+            subcategories: await db.getSubCategoryStats()
         }
     })
 );

@@ -288,3 +288,43 @@ export const checkDuplicate = async (entry: Entry): Promise<any> => {
     }
     return { duplicate: false, type: 'Valid entry.' };
 };
+
+export const getCategoryStats = async (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        const category = [];
+        db.scams.forEach(entry => {
+            if (entry.category) {
+                const blank = category.findIndex(en => en.category === entry.category);
+                if (blank >= 0) {
+                    category[blank].count += 1;
+                } else {
+                    category.push({
+                        category: entry.category,
+                        count: 1
+                    });
+                }
+            }
+        });
+        resolve(category);
+    });
+};
+
+export const getSubCategoryStats = async (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+        const subcategory = [];
+        db.scams.forEach(entry => {
+            if (entry.subcategory) {
+                const blank = subcategory.findIndex(en => en.subcategory === entry.subcategory);
+                if (blank >= 0) {
+                    subcategory[blank].count += 1;
+                } else {
+                    subcategory.push({
+                        subcategory: entry.subcategory,
+                        count: 1
+                    });
+                }
+            }
+        });
+        resolve(subcategory);
+    });
+};
