@@ -62,12 +62,11 @@ export default async (options: ConfigOptions): Promise<void> => {
         },
         autoPull: {
             enabled: options.pull === 'on',
-            interval: 1000 * 60 * 2,
-            repository: {
-                author: 'MrLuit',
-                name: 'EtherScamDB',
-                branch: 'master'
-            }
+            interval: 1000 * 60 * 2
+        },
+        autoPR: {
+            enabled: true,
+            interval: 30000
         },
         lookups: {
             DNS: {
