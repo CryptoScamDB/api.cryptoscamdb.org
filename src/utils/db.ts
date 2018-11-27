@@ -1,10 +1,9 @@
+import * as sqlite3 from 'sqlite3';
 import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
 import * as url from 'url';
 import * as path from 'path';
 import config from './config';
-import * as serialijse from 'serialijse';
-import createDictionary from '@cryptoscamdb/array-object-dictionary';
 import Scam from '../classes/scam.class';
 import * as Debug from 'debug';
 import Entry from '../models/entry';
@@ -14,49 +13,60 @@ import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
 
 const debug = Debug('db');
+const db = new sqlite3.Database('./cache_v2.db');
 
-/* Declare Scam class for serialijse */
-serialijse.declarePersistable(Scam);
+export const init = async (): Promise<void> => {
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS entries (id TEXT, type TEXT, url TEXT, featured INTEGER, path TEXT, category TEXT, subcategory TEXT, description TEXT, reporter TEXT, coin TEXT, ip TEXT, severity INTEGER, statusCode INTEGER, status TEXT, updated INTEGER, PRIMARY KEY(id))'
+    );
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry INTEGER, PRIMARY KEY(address,entry))'
+    );
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS price (ticker TEXT, price INTEGER, PRIMARY KEY(ticker))'
+    );
+    await this.run('CREATE TABLE IF NOT EXISTS reported (url TEXT, PRIMARY KEY(url))');
+    await readEntries();
+    await priceUpdate();
+    if (config.interval.priceLookup > 0) {
+        setInterval(priceUpdate, config.interval.priceLookup);
+    }
+};
 
-interface Database {
-    scams: Scam[];
-    verified: Entry[];
-    index: {
-        featured: Entry[];
-        blacklist: string[];
-        whitelist: string[];
-        whitelistAddresses: string[];
-        addresses: string[];
-        ips: string[];
-        inactives: Scam[];
-        actives: Scam[];
-        reporters: string[];
-    };
-    prices: {
-        cryptos: Coins[];
-    };
-    reported: EntryWrapper[];
-}
+export const get = (query, data = []) => {
+    return new Promise((resolve, reject) => {
+        db.get(query, data, function(error, row) {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(row);
+            }
+        });
+    });
+};
 
-/* Define empty database structure */
-const db: Database = {
-    scams: [],
-    verified: [],
-    index: {
-        featured: [],
-        blacklist: [],
-        whitelist: [],
-        whitelistAddresses: [],
-        addresses: [],
-        ips: [],
-        inactives: [],
-        actives: [],
-        reporters: []
-    },
-    prices: {
-        cryptos: []
-    },
-    reported: []
+export const all = (query, data = []) => {
+    return new Promise((resolve, reject) => {
+        db.all(query, data, function(error, rows) {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(rows);
+            }
+        });
+    });
+};
+
+export const run = (query, data = []) => {
+    return new Promise((resolve, reject) => {
+        db.run(query, data, function(error) {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(this.changes);
+            }
+        });
+    });
 };
 
 /* Read entries from yaml files and load them into DB object */
@@ -106,71 +116,6 @@ export const readEntries = async (): Promise<void> => {
             }
         });
     }
-};
-
-/* Create indexes for DB object */
-export const updateIndex = async (): Promise<void> => {
-    //debug("Updating index...");
-    const scamDictionary = createDictionary(db.scams);
-    const verifiedDictionary = createDictionary(db.verified);
-
-    db.index.featured = db.verified
-        .filter(entry => entry.featured)
-        .sort((a, b) => a.name.localeCompare(b.name));
-    db.index.blacklist = [
-        ...db.scams
-            .filter(entry => entry.path === '/*')
-            .map(entry => entry.getHostname().replace('www.', '')),
-        ...db.scams
-            .filter(entry => entry.path === '/*')
-            .map(entry => entry.getHostname().replace('www.', '')),
-        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path === '/*')
-    ];
-    db.index.whitelist = [
-        ...db.verified.map(entry => url.parse(entry.url).hostname.replace('www.', '')),
-        ...db.verified.map(entry => 'www.' + url.parse(entry.url).hostname.replace('www.', ''))
-    ];
-    db.index.whitelistAddresses = verifiedDictionary.addresses || [];
-    db.index.addresses = scamDictionary.addresses || [];
-    db.index.ips = scamDictionary.ip || [];
-    db.index.inactives = db.scams.filter(scam => scam.status !== 'Active');
-    db.index.actives = db.scams.filter(scam => scam.status === 'Active');
-    db.index.reporters = scamDictionary.reporter;
-};
-
-/* Write DB on exit */
-export const exitHandler = (): void => {
-    fs.writeFileSync('./cache.db', serialijse.serialize(db));
-};
-
-export const init = async (): Promise<void> => {
-    await readEntries();
-    await module.exports.priceUpdate();
-    await updateIndex();
-    await module.exports.persist();
-    if (config.interval.priceLookup > 0) {
-        setInterval(module.exports.priceUpdate, config.interval.priceLookup);
-    }
-    if (config.interval.databasePersist > 0) {
-        setInterval(module.exports.persist, config.interval.databasePersist);
-    }
-    process.stdin.resume();
-    process.once('beforeExit', exitHandler);
-    process.once('SIGINT', exitHandler);
-    process.once('SIGTERM', exitHandler);
-};
-
-export const read = (): Database => db;
-
-export const write = (scamUrl, data): void => {
-    const scam = db.scams.find(dbScam => dbScam.url === scamUrl);
-    Object.keys(data).forEach(key => (scam[key] = data[key]));
-    updateIndex(); // TODO: Handle promise
-};
-
-export const persist = async (): Promise<void> => {
-    debug('Persisting cache...');
-    await fs.writeFile('./cache.db', serialijse.serialize(db));
 };
 
 export const priceUpdate = async (): Promise<void> => {
