@@ -11,19 +11,20 @@ import EntryWrapper from '../models/entrywrapper';
 import Coins from '../models/coins';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
+import { utils } from 'web3';
 
 const debug = Debug('db');
-const db = new sqlite3.Database('./cache_v2.db');
+const db = new sqlite3.Database('./data/cache.db');
 
 export const init = async (): Promise<void> => {
     await this.run(
-        'CREATE TABLE IF NOT EXISTS entries (id TEXT, type TEXT, url TEXT, featured INTEGER, path TEXT, category TEXT, subcategory TEXT, description TEXT, reporter TEXT, coin TEXT, ip TEXT, severity INTEGER, statusCode INTEGER, status TEXT, updated INTEGER, PRIMARY KEY(id))'
+        'CREATE TABLE IF NOT EXISTS entries (id TEXT, name TEXT, type TEXT, url TEXT, hostname TEXT, featured INTEGER, path TEXT, category TEXT, subcategory TEXT, description TEXT, reporter TEXT, coin TEXT, ip TEXT, severity INTEGER, statusCode INTEGER, status TEXT, updated INTEGER, PRIMARY KEY(id))'
     );
     await this.run(
         'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry INTEGER, PRIMARY KEY(address,entry))'
     );
     await this.run(
-        'CREATE TABLE IF NOT EXISTS price (ticker TEXT, price INTEGER, PRIMARY KEY(ticker))'
+        'CREATE TABLE IF NOT EXISTS prices (ticker TEXT, price INTEGER, PRIMARY KEY(ticker))'
     );
     await this.run('CREATE TABLE IF NOT EXISTS reported (url TEXT, PRIMARY KEY(url))');
     await readEntries();
@@ -35,8 +36,10 @@ export const init = async (): Promise<void> => {
 
 export const get = (query, data = []) => {
     return new Promise((resolve, reject) => {
+        debug('GET %s %o', query, data);
         db.get(query, data, function(error, row) {
             if (error) {
+                debug('ERROR %s %o', query, data);
                 reject(error);
             } else {
                 resolve(row);
@@ -47,8 +50,10 @@ export const get = (query, data = []) => {
 
 export const all = (query, data = []) => {
     return new Promise((resolve, reject) => {
+        debug('ALL %s %o', query, data);
         db.all(query, data, function(error, rows) {
             if (error) {
+                debug('ERROR %s %o', query, data);
                 reject(error);
             } else {
                 resolve(rows);
@@ -59,8 +64,10 @@ export const all = (query, data = []) => {
 
 export const run = (query, data = []) => {
     return new Promise((resolve, reject) => {
+        debug('RUN %s %o', query, data);
         db.run(query, data, function(error) {
             if (error) {
+                debug('ERROR %s %o', query, data);
                 reject(error);
             } else {
                 resolve(this.changes);
@@ -72,89 +79,113 @@ export const run = (query, data = []) => {
 /* Read entries from yaml files and load them into DB object */
 export const readEntries = async (): Promise<void> => {
     debug('Reading entries...');
-    const scamsFile = await fs.readFile(
-        path.join(__dirname, '../../data/blacklist_urls.yaml'),
-        'utf8'
-    );
-    const verifiedFile = await fs.readFile(
-        path.join(__dirname, '../../data/whitelist_urls.yaml'),
-        'utf8'
-    );
-    const cacheExists = await fs.pathExists('./cache.db');
-    if (!cacheExists) {
-        yaml.safeLoad(scamsFile)
-            .filter(entry => entry.url)
-            .map(entry => new Scam(entry))
-            .forEach(entry => db.scams.push(entry));
-        yaml.safeLoad(verifiedFile).forEach(entry => db.verified.push(entry));
-    } else {
-        const cacheFile = await fs.readFile('./cache.db', 'utf8');
-        Object.assign(db, serialijse.deserialize(cacheFile));
-        yaml.safeLoad(scamsFile)
-            .filter(entry => !db.scams.find(scam => scam.url === entry.url))
-            .map(entry => new Scam(entry))
-            .forEach(entry => db.scams.push(entry));
-        yaml.safeLoad(verifiedFile)
-            .filter(entry => !db.verified.find(verified => verified.url === entry.url))
-            .forEach(entry => db.verified.push(entry));
-        yaml.safeLoad(scamsFile).forEach(entry => {
-            const index = db.scams.indexOf(db.scams.find(scam => scam.url === entry.url));
-            db.scams[index].category = entry.category;
-            db.scams[index].subcategory = entry.subcategory;
-            db.scams[index].description = entry.description;
-            db.scams[index].reporter = entry.reporter;
-            db.scams[index].coin = entry.coin;
-        });
-        yaml.safeLoad(verifiedFile).forEach(entry => {
-            const index = db.verified.indexOf(
-                db.verified.find(verified => verified.url === entry.url)
-            );
-            db.verified[index].url = entry.url;
-            db.verified[index].description = entry.description;
-            if (entry.addresses) {
-                db.verified[index].addresses = entry.addresses;
+    const scamsFile = await fs.readFile('./data/blacklist_urls.yaml', 'utf8');
+    const verifiedFile = await fs.readFile('./data/whitelist_urls.yaml', 'utf8');
+    const scams = yaml.safeLoad(scamsFile).map(entry => new Scam(entry));
+    const verified = yaml.safeLoad(verifiedFile);
+    await Promise.all(
+        scams.map(async entry => {
+            const entryExists = await get('SELECT * FROM entries WHERE id=?', [entry.getID()]);
+            if (!entryExists) {
+                await run(
+                    "INSERT OR IGNORE INTO entries VALUES (?,?,'scam',?,?,0,?,?,?,?,?,?,null,?,null,null,0)",
+                    [
+                        entry.getID(),
+                        entry.getHostname(),
+                        entry.url,
+                        entry.getHostname(),
+                        entry.path,
+                        entry.category,
+                        entry.subcategory,
+                        entry.description,
+                        entry.reporter,
+                        entry.coin,
+                        entry.severity
+                    ]
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(address =>
+                        run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                            address,
+                            entry.getID()
+                        ])
+                    )
+                );
+            } else {
+                await run(
+                    'UPDATE entries SET path=?,category=?,subcategory=?,description=?,reporter=?,coin=?,severity=? WHERE id=?',
+                    [
+                        entry.path,
+                        entry.category,
+                        entry.subcategory,
+                        entry.description,
+                        entry.reporter,
+                        entry.coin,
+                        entry.severity,
+                        entry.getID()
+                    ]
+                );
             }
-        });
-    }
+        })
+    );
+    await Promise.all(
+        verified.map(async entry => {
+            const id = utils.sha3(entry.url).substring(2, 8);
+            const entryExists = await get('SELECT * FROM entries WHERE id=?', [id]);
+            if (!entryExists) {
+                await run(
+                    "INSERT OR IGNORE INTO entries VALUES (?,?,'verified',?,?,?,null,null,null,?,null,null,null,null,null,null,null)",
+                    [
+                        id,
+                        entry.name,
+                        entry.url,
+                        url.parse(entry.url).hostname,
+                        entry.featured,
+                        entry.description
+                    ]
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(address =>
+                        run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [address, id])
+                    )
+                );
+            } else {
+                await run('UPDATE entries SET name=?,description=? WHERE id=?', [
+                    entry.name,
+                    entry.description,
+                    id
+                ]);
+            }
+        })
+    );
 };
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
-    db.prices.cryptos = [];
     config.coins.forEach(async each => {
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
         const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
         debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
-        db.prices.cryptos.push({
-            ticker: each.ticker,
-            price: priceUSD
-        });
+        await run('INSERT OR REPLACE INTO prices VALUES (?,?)', [each.ticker, priceUSD]);
     });
 };
 
 export const createPR = async (): Promise<void> => {
-    if (db.reported.length < 1 || db.reported === undefined) {
-        // Do nothing; empty reported cache
-    } else {
-        debug(db.reported.length + ' entries found in report cache.');
-        db.reported.forEach(async entry => {
+    const reported: any = await all('SELECT * FROM reported');
+    if (reported.length > 0) {
+        debug(reported.length + ' entries found in report cache.');
+        reported.forEach(async entry => {
             try {
                 debug('Trying to remove entry from report cache');
                 const successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
                 if (successStatus.success) {
                     if (successStatus.url) {
                         // Success
-                        db.reported = db.reported.filter(el => {
-                            return el !== entry;
-                        });
-                        exitHandler();
+                        run('DELETE from reported WHERE url=?', [entry.url]);
                         debug('Url entry removed from report cache.');
                     } else {
                         // Success
-                        db.reported = db.reported.filter(el => {
-                            return el !== entry;
-                        });
-                        exitHandler();
+                        run('DELETE from reported WHERE url=?', [entry.url]);
                         debug('Entry removed from report cache.');
                     }
                 } else {
@@ -172,7 +203,7 @@ export const createPR = async (): Promise<void> => {
 export const addReport = async (entry: EntryWrapper) => {
     // Adding new entry to the reported section.
     try {
-        db.reported.push(entry);
+        await run('INSERT OR IGNORE INTO reported VALUES (?)', [entry]);
     } catch (e) {
         return { success: false, error: e };
     }
@@ -185,13 +216,9 @@ export const addReport = async (entry: EntryWrapper) => {
 };
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
-    if (db.reported.find(el => el !== entry)) {
-        debug(
-            'Input entry ' +
-                JSON.stringify(entry, null, 2) +
-                ' matches ' +
-                JSON.stringify(db.reported[db.reported.findIndex(el => el === entry)], null, 2)
-        );
+    const reported = await get('SELECT * FROM reported WHERE url=?', [entry]);
+    if (reported) {
+        debug('Input entry ' + JSON.stringify(entry, null, 2) + ' matches ');
         return true;
     } else {
         debug('Input entry not found in reported');
@@ -201,17 +228,12 @@ export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
 
 export const checkDuplicate = async (entry: Entry): Promise<any> => {
     if (entry.addresses) {
-        entry.addresses.forEach(address => {
-            if (
-                Object.keys(db.index.addresses).find(blacklistedaddr => blacklistedaddr === address)
-            ) {
+        entry.addresses.forEach(async address => {
+            const dbEntry: any = await get('SELECT * FROM addresses WHERE address=?', [address]);
+            if (dbEntry && dbEntry.type == 'scam') {
                 return { duplicate: true, type: 'Blacklisted address already exists.' };
             }
-            if (
-                Object.keys(db.index.whitelistAddresses).find(
-                    whitelistAddr => whitelistAddr === address
-                )
-            ) {
+            if (dbEntry && dbEntry.type == 'verified') {
                 return { duplicate: true, type: 'Whitelisted address already exists.' };
             }
         });
@@ -219,63 +241,25 @@ export const checkDuplicate = async (entry: Entry): Promise<any> => {
 
     if (entry.url || entry.name) {
         if (entry.url) {
-            if (db.scams.find(scam => scam.url === entry.url)) {
+            const dbEntry: any = await get('SELECT * FROM entries WHERE url=?', [entry.url]);
+            if (dbEntry && dbEntry.type == 'scam') {
                 return { duplicate: true, type: 'Blacklisted url already exists.' };
             }
-            if (db.verified.find(verified => verified.url === entry.url)) {
+            if (dbEntry && dbEntry.type == 'verified') {
                 return { duplicate: true, type: 'Whitelisted url already exists.' };
             }
         }
 
         if (entry.name) {
-            if (db.scams.find(scam => scam.name === entry.name)) {
+            const dbEntry: any = await get('SELECT * FROM entries WHERE name=?', [entry.name]);
+            if (dbEntry && dbEntry.type == 'scam') {
                 return { duplicate: true, type: 'Blacklisted name already exists.' };
             }
-            if (db.verified.find(verified => verified.name === entry.name)) {
+            if (dbEntry && dbEntry.type == 'verified') {
                 return { duplicate: true, type: 'Whitelisted name already exists.' };
             }
         }
         return { duplicate: false, type: 'Valid entry.' };
     }
     return { duplicate: false, type: 'Valid entry.' };
-};
-
-export const getCategoryStats = async (): Promise<any> => {
-    return new Promise((resolve, reject) => {
-        const category = [];
-        db.scams.forEach(entry => {
-            if (entry.category) {
-                const blank = category.findIndex(en => en.category === entry.category);
-                if (blank >= 0) {
-                    category[blank].count += 1;
-                } else {
-                    category.push({
-                        category: entry.category,
-                        count: 1
-                    });
-                }
-            }
-        });
-        resolve(category);
-    });
-};
-
-export const getSubCategoryStats = async (): Promise<any> => {
-    return new Promise((resolve, reject) => {
-        const subcategory = [];
-        db.scams.forEach(entry => {
-            if (entry.subcategory) {
-                const blank = subcategory.findIndex(en => en.subcategory === entry.subcategory);
-                if (blank >= 0) {
-                    subcategory[blank].count += 1;
-                } else {
-                    subcategory.push({
-                        subcategory: entry.subcategory,
-                        count: 1
-                    });
-                }
-            }
-        });
-        resolve(subcategory);
-    });
 };

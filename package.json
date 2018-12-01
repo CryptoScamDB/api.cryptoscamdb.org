@@ -30,7 +30,7 @@
     "test": "tsc --noEmit --project tsconfig.json",
     "test:autopr": "ts-node tests/testautopr --trace-warnings",
     "test:ens": "ts-node tests/testensresolve --trace-warnings",
-    "clean": "rimraf cache.db node_modules data config.json",
+    "clean": "rimraf node_modules data config.json",
     "prettier:diff": "prettier --write --config ./.prettierrc --list-different \"src/**/*.ts\"",
     "tscheck": "tsc --noEmit --project tsconfig.json",
     "tslint": "tslint --project .",
@@ -68,7 +68,7 @@
     "octonode": "^0.9.5",
     "private-ip": "^1.0.5",
     "request": "^2.87.0",
-    "sqlite3": "^4.0.4",
+    "sqlite3": "4.0.4",
     "ts-node": "^7.0.1",
     "typescript": "^3.1.1",
     "web3": "^1.0.0-beta.36"

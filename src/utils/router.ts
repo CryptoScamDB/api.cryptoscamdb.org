@@ -9,6 +9,7 @@ import * as github from './github';
 import * as captcha from './gcaptcha';
 import * as slack from './slack';
 import { getGoogleSafeBrowsing, getURLScan, getVirusTotal, accountLookup } from './lookup';
+import Scam from '../classes/scam.class';
 import addressCheck from './addressCheck';
 import { flatten } from 'flat';
 import { apiKeyOwner } from './apiKeyTest';
@@ -33,33 +34,62 @@ router.get('/v1/stats', async (req, res) =>
     res.json({
         success: true,
         result: {
-            scams: Object.keys(db.read().scams).length,
-            verified: Object.keys(db.read().verified).length,
-            featured: Object.keys(db.read().index.featured).length,
-            addresses: Object.keys(db.read().index.addresses).length,
-            ips: Object.keys(db.read().index.ips).length,
-            actives: Object.keys(db.read().index.actives).length,
-            inactives: Object.keys(db.read().index.inactives).length,
-            reporters: Object.keys(db.read().index.reporters).map(reporter => ({
-                name: reporter,
-                count: db.read().index.reporters[reporter].length
-            })),
-            categories: await db.getCategoryStats(),
-            subcategories: await db.getSubCategoryStats()
+            scams: (await db.get("SELECT COUNT(*) as count FROM entries WHERE type='scam'"))[
+                'COUNT(*)'
+            ],
+            verified: (await db.get("SELECT COUNT(*) as count FROM entries WHERE type='verified'"))[
+                'COUNT(*)'
+            ],
+            featured: (await db.get('SELECT COUNT(*) as count FROM entries WHERE featured=1'))[
+                'COUNT(*)'
+            ],
+            addresses: (await db.get(
+                'SELECT count(DISTINCT address) as count FROM addresses WHERE address IS NOT NULL'
+            ))['count'],
+            ips: (await db.all(
+                'SELECT count(DISTINCT ip) as count FROM entries WHERE ip IS NOT NULL'
+            ))['count'],
+            actives: (await db.get("SELECT COUNT(*) as count FROM entries WHERE status='Active'"))[
+                'COUNT(*)'
+            ],
+            inactives: (await db.get(
+                "SELECT COUNT(*) as count FROM entries WHERE type='Inactive'"
+            ))['COUNT(*)'],
+            reporters: await db.all(
+                'SELECT reporter,count(reporter) as count FROM entries WHERE reporter IS NOT NULL GROUP BY reporter'
+            ),
+            categories: await db.all(
+                'SELECT category,count(category) as count FROM entries WHERE category IS NOT NULL GROUP BY category'
+            ),
+            subcategories: await db.all(
+                'SELECT subcategory,count(subcategory) as count FROM entries WHERE subcategory IS NOT NULL GROUP BY subcategory'
+            )
         }
     })
 );
-router.get('/v1/featured', (req, res) =>
-    res.json({ success: true, result: db.read().verified.filter(entry => entry.featured) })
+router.get('/v1/featured', async (req, res) =>
+    res.json({
+        success: true,
+        result: await db.all(
+            "SELECT id,name,description FROM entries WHERE type='verified' AND featured=1"
+        )
+    })
 );
-router.get('/v1/scams', (req, res) => res.json({ success: true, result: db.read().scams }));
+router.get('/v1/scams', async (req, res) =>
+    res.json({
+        success: true,
+        result: await db.all(
+            "SELECT id,url,path,category,subcategory,description,reporter,coin,ip,severity,statusCode,status,updated FROM entries WHERE type='scam'"
+        )
+    })
+);
 router.get('/v1/entry/:id', async (req, res) => {
-    const entry = db.read().scams.find(ent => ent.id === req.params.id);
+    const entry: any = await db.get('SELECT * FROM entries WHERE id=?', req.params.id);
     if (!entry) {
         res.json({ success: false, message: "Couldn't find requested ID" });
     } else {
         entry.lookups = {};
-        entry.abusereport = generateAbuseReport(entry);
+        entry.abusereport = generateAbuseReport(new Scam(entry));
         if (config.apiKeys.Google_SafeBrowsing) {
             entry.lookups.Google_SafeBrowsing = await getGoogleSafeBrowsing(entry.url);
         } else {
@@ -75,47 +105,79 @@ router.get('/v1/entry/:id', async (req, res) => {
     }
 });
 router.get('/v1/domain/:domain', async (req, res) => {
-    const badEntries = db.read().scams.filter(entry => entry.hostname === req.params.domain);
-    const goodEntries = db
-        .read()
-        .verified.filter(entry => url.parse(entry.url).hostname === req.params.domain);
+    const entries: any = await db.all('SELECT * FROM entries WHERE hostname=?', [
+        req.params.domain
+    ]);
     res.json({
-        success: badEntries.length > 0 || goodEntries.length > 0,
-        result: [
-            ...badEntries.map(entry => {
-                entry.type = 'scam';
-                return entry;
-            }),
-            ...goodEntries.map(entry => {
-                entry.type = 'verified';
-                return entry;
-            })
-        ]
+        success: entries.length > 0,
+        result: entries
     });
 });
-router.get('/v1/addresses', (req, res) =>
-    res.json({ success: true, result: db.read().index.addresses })
+router.get('/v1/addresses', async (req, res) => {
+    const result = {};
+    const addresses: any = await db.all(
+        'SELECT entries.*, addresses.address FROM addresses LEFT JOIN entries ON entries.id = addresses.entry'
+    );
+    addresses.forEach(entry => {
+        if (!(entry.address in result)) result[entry.address] = [];
+        result[entry.address].push(entry);
+    });
+    res.json({
+        success: true,
+        result: result
+    });
+});
+router.get('/v1/ips', async (req, res) => {
+    const result = {};
+    const scams: any = await db.all('SELECT * FROM entries WHERE ip NOT NULL');
+    scams.forEach(entry => {
+        if (!(entry.ip in result)) result[entry.ip] = [];
+        result[entry.ip].push(entry);
+    });
+    res.json({
+        success: true,
+        result: result
+    });
+});
+router.get('/v1/verified', async (req, res) =>
+    res.json({
+        success: true,
+        result: await db.all(
+            "SELECT id,name,featured,description FROM entries WHERE type='verified'"
+        )
+    })
 );
-router.get('/v1/ips', (req, res) => res.json({ success: true, result: db.read().index.ips }));
-router.get('/v1/verified', (req, res) => res.json({ success: true, result: db.read().verified }));
-router.get('/v1/inactives', (req, res) =>
-    res.json({ success: true, result: db.read().index.inactives })
+router.get('/v1/inactives', async (req, res) =>
+    res.json({
+        success: true,
+        result: await db.all("SELECT * FROM entries WHERE status='Inactive'")
+    })
 );
-router.get('/v1/actives', (req, res) =>
-    res.json({ success: true, result: db.read().index.actives })
+router.get('/v1/actives', async (req, res) =>
+    res.json({ success: true, result: await db.all("SELECT * FROM entries WHERE status='Active'") })
 );
-router.get('/v1/blacklist', (req, res) => res.json(db.read().index.blacklist));
-router.get('/v1/whitelist', (req, res) => res.json(db.read().index.whitelist));
-router.get('/v1/reportedlist', (req, res) => res.json(db.read().reported));
+router.get('/v1/blacklist', async (req, res) =>
+    res.json(
+        ((await db.all("SELECT hostname FROM entries WHERE type='scam'")) as any).map(
+            entry => entry.hostname
+        )
+    )
+);
+router.get('/v1/whitelist', async (req, res) =>
+    res.json(
+        ((await db.all("SELECT hostname FROM entries WHERE type='verified'")) as any).map(
+            entry => entry.hostname
+        )
+    )
+);
+router.get('/v1/reportedlist', async (req, res) =>
+    res.json(await db.all('SELECT * FROM reported'))
+);
 router.get('/v1/abusereport/:domain', (req, res) => {
-    const result = db
-        .read()
-        .scams.find(
-            scam =>
-                scam.getHostname() === url.parse(req.params.domain).hostname ||
-                scam.getHostname() === req.params.domain ||
-                scam.url.replace(/(^\w+:|^)\/\//, '') === req.params.domain
-        );
+    const result: any = db.get(
+        "SELECT * FROM entries WHERE type='scam' AND (hostname=? OR hostname=? OR url=?)",
+        [url.parse(req.params.domain).hostname, req.params.domain, req.params.domain]
+    );
     if (result) {
         res.json({ success: true, result: generateAbuseReport(result) });
     } else {
@@ -474,38 +536,28 @@ router.get('/v1/check/:search', async (req, res) => {
             )
         ) {
             /* Searched for a domain */
-            const whitelistURL = db
-                .read()
-                .verified.find(
-                    entry =>
-                        (url.parse(req.params.search.toLowerCase()).hostname ||
-                            req.params.search.toLowerCase()) === url.parse(entry.url).hostname
-                );
-            const blacklistURL = db
-                .read()
-                .scams.find(
-                    entry =>
-                        (url.parse(req.params.search.toLowerCase()).hostname ||
-                            req.params.search.toLowerCase()) === entry.getHostname()
-                );
-            if (whitelistURL) {
+            const entry: any = db.get('SELECT * FROM entries WHERE hostname=? OR url=?', [
+                url.parse(req.params.search).hostname,
+                req.params.search
+            ]);
+            if (entry && entry.type == 'verified') {
                 res.json({
                     input: req.params.search,
                     success: true,
                     result: {
                         status: 'verified',
                         type: 'domain',
-                        entries: [whitelistURL]
+                        entries: [entry]
                     }
                 });
-            } else if (blacklistURL) {
+            } else if (entry && entry.type == 'scam') {
                 res.json({
                     input: req.params.search,
                     success: true,
                     result: {
                         status: 'blocked',
                         type: 'domain',
-                        entries: [blacklistURL]
+                        entries: [entry]
                     }
                 });
             } else {
@@ -525,8 +577,9 @@ router.get('/v1/check/:search', async (req, res) => {
             )
         ) {
             /* Searched for an ip address */
-            const blacklistIP = Object.keys(db.read().index.ips).filter(
-                ip => req.params.search.toLowerCase() === ip.toLowerCase()
+            const blacklistIP: any = await db.all(
+                "SELECT * FROM entries WHERE ip=? AND type='scam'",
+                [req.params.search]
             );
             if (blacklistIP.length > 0) {
                 res.json({
@@ -563,30 +616,18 @@ router.get('/v1/check/:search', async (req, res) => {
 /* Price endpoints */
 router.get('/v1/price/:coin', async (req, res) => {
     if (req.params.coin) {
-        const coin = req.params.coin.toLowerCase();
-        const cryptos = {};
-        db.read().prices.cryptos.forEach(dbcoin => {
-            cryptos[dbcoin.ticker] = dbcoin.price;
-        });
-        if (config.coins) {
-            if (cryptos && cryptos[coin]) {
-                res.json({
-                    success: true,
-                    result: cryptos[coin],
-                    coin
-                });
-            } else {
-                res.json({
-                    success: false,
-                    message: `Coin ${coin} is not supported by this app\'s configuration`,
-                    coin
-                });
-            }
+        const coin: any = await db.get('SELECT * FROM prices WHERE ticker=?', [
+            req.params.coin.toLowerCase()
+        ]);
+        if (coin) {
+            res.json({
+                success: true,
+                result: coin
+            });
         } else {
             res.json({
                 success: false,
-                message: `There are no coins supported in this app\'s configuration`,
-                coin
+                message: `Coin ${coin.ticker} is not supported by this app\'s configuration`
             });
         }
     } else {
@@ -613,10 +654,9 @@ router.get('/v1/balance/:coin/:address', async (req, res) => {
         } else {
             const decimal = Number(config.coins[index].decimal);
             const balance = Number(returnedBal.balance);
-            const usdIndex = db
-                .read()
-                .prices.cryptos.findIndex(entry => entry.ticker === req.params.coin.toLowerCase());
-            const usdPrice = db.read().prices.cryptos[usdIndex];
+            const usdPrice: any = await db.get('SELECT * FROM prices WHERE ticker=?', [
+                req.params.coin
+            ]);
             const value = balance * Math.pow(10, Math.round(-1 * decimal));
             const coin = config.coins.findIndex(entry => entry.ticker === req.params.coin);
             const blockexplorer = config.coins[coin].addressLookUp;

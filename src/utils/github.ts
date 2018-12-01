@@ -44,8 +44,6 @@ export const webhook = async (req: Request, res: Response, body: string): Promis
             debug('Valid incoming Github webhook!');
             await pullDataFiles();
             await db.readEntries();
-            await db.updateIndex();
-            await db.persist();
             res.status(200).end();
         } else {
             debug('Warning: Invalid Github webhook attempt');
@@ -59,6 +57,4 @@ export const pullRaw = pullDataFiles;
 export const pullData = async (): Promise<void> => {
     await pullDataFiles();
     await db.readEntries();
-    await db.updateIndex();
-    await db.persist();
 };

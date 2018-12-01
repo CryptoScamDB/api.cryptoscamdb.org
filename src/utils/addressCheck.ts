@@ -15,27 +15,22 @@ interface JsonRet {
     validRoot?: boolean;
 }
 
-export default (params: string, coin: string): JsonRet => {
+export default async (params: string, coin: string): Promise<JsonRet> => {
     debug('Starting to check DB for address - ' + params + ' - ' + coin);
-    const whitelistAddress = Object.keys(db.read().index.whitelistAddresses).find(
-        address => params.toLowerCase() === address.toLowerCase()
-    );
-    const blacklistAddress = Object.keys(db.read().index.addresses).find(
-        address => params.toLowerCase() === address.toLowerCase()
-    );
-    if (whitelistAddress) {
+    const address: any = await db.get('SELECT * FROM addresses WHERE address=?', [params]);
+    if (address && address.type == 'verified') {
         return {
             status: 'whitelisted',
             type: 'address',
             coin,
-            entries: db.read().index.whitelistAddresses[whitelistAddress]
+            entries: address
         };
-    } else if (blacklistAddress) {
+    } else if (address && address.type == 'scam') {
         return {
             status: 'blocked',
             type: 'address',
             coin,
-            entries: db.read().index.addresses[blacklistAddress]
+            entries: address
         };
     } else {
         return {

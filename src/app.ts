@@ -19,8 +19,15 @@ export const update = async (): Promise<void> => {
     /* Create and write to cache.db */
     debug('Spawning update process...');
     const updateProcess = fork(path.join(__dirname, 'scripts/update.ts'));
-    debug('Writing to cache.db');
-    updateProcess.on('message', data => db.write(data.url, data));
+    updateProcess.on('message', data => {
+        db.run('UPDATE entries SET ip=?,status=?,statusCode=?,updated=? WHERE id=?', [
+            data.ip,
+            data.status,
+            data.statusCode,
+            data.updated,
+            data.id
+        ]);
+    });
 
     /* After db is initially written, write the cache.db every cacheRenewCheck-defined period */
     updateProcess.on('exit', () => {

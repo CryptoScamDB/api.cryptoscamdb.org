@@ -1,6 +1,5 @@
 {
     "ignore": [
-        "cache.db",
         "data/*"
     ],
     "ext": "ts",

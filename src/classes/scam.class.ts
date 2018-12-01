@@ -30,9 +30,9 @@ export default class Scam implements Entry {
     /* Create new Scam instance */
     constructor(scamData: Entry = {}) {
         if (scamData && scamData.url) {
-            this.id = this.getID(scamData.url);
             this.name = scamData.name;
             this.url = scamData.url;
+            this.id = this.getID();
             this.category = scamData.category;
             this.subcategory = scamData.subcategory;
             this.description = scamData.description;
@@ -47,8 +47,8 @@ export default class Scam implements Entry {
     }
 
     /* Calculate ID of entry */
-    getID(url): string {
-        return utils.sha3(url).substring(2, 8);
+    getID(): string {
+        return utils.sha3(this.url).substring(2, 8);
     }
 
     /* Returns either `false` or a request response */
