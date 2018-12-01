@@ -50,7 +50,7 @@
   "dependencies": {
     "@cryptoscamdb/array-object-dictionary": "1.1.0",
     "@cryptoscamdb/graceful-dns": "1.1.0",
-    "bottleneck": "2.13.0",
+    "bottleneck": "2.13.1",
     "compression": "1.7.3",
     "cross-env": "5.2.0",
     "dateformat": "3.0.3",
