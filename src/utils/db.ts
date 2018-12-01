@@ -12,6 +12,7 @@ import Coins from '../models/coins';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
 import { utils } from 'web3';
+import coins from './endpoints';
 
 const debug = Debug('db');
 const db = new sqlite3.Database('./data/cache.db');
@@ -162,7 +163,7 @@ export const readEntries = async (): Promise<void> => {
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
-    config.coins.forEach(async each => {
+    coins.forEach(async each => {
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
         const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
         debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
