@@ -35,7 +35,7 @@ export const init = async (): Promise<void> => {
     }
 };
 
-export const get = (query, data = []) => {
+export const get = (query, data?) => {
     return new Promise((resolve, reject) => {
         debug('GET %s %o', query, data);
         db.get(query, data, function(error, row) {
@@ -49,7 +49,7 @@ export const get = (query, data = []) => {
     });
 };
 
-export const all = (query, data = []) => {
+export const all = (query, data?) => {
     return new Promise((resolve, reject) => {
         debug('ALL %s %o', query, data);
         db.all(query, data, function(error, rows) {
@@ -63,7 +63,7 @@ export const all = (query, data = []) => {
     });
 };
 
-export const run = (query, data = []) => {
+export const run = (query, data?) => {
     return new Promise((resolve, reject) => {
         debug('RUN %s %o', query, data);
         db.run(query, data, function(error) {
@@ -84,81 +84,43 @@ export const readEntries = async (): Promise<void> => {
     const verifiedFile = await fs.readFile('./data/whitelist_urls.yaml', 'utf8');
     const scams = yaml.safeLoad(scamsFile).map(entry => new Scam(entry));
     const verified = yaml.safeLoad(verifiedFile);
+    db.run('BEGIN TRANSACTION');
     await Promise.all(
         scams.map(async entry => {
-            const entryExists = await get('SELECT * FROM entries WHERE id=?', [entry.getID()]);
-            if (!entryExists) {
-                await run(
-                    "INSERT OR IGNORE INTO entries VALUES (?,?,'scam',?,?,0,?,?,?,?,?,?,null,?,null,null,0)",
-                    [
-                        entry.getID(),
-                        entry.getHostname(),
-                        entry.url,
-                        entry.getHostname(),
-                        entry.path,
-                        entry.category,
-                        entry.subcategory,
-                        entry.description,
-                        entry.reporter,
-                        entry.coin,
-                        entry.severity
-                    ]
-                );
-                await Promise.all(
-                    (entry.addresses || []).map(address =>
-                        run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
-                            address,
-                            entry.getID()
-                        ])
-                    )
-                );
-            } else {
-                await run(
-                    'UPDATE entries SET path=?,category=?,subcategory=?,description=?,reporter=?,coin=?,severity=? WHERE id=?',
-                    [
-                        entry.path,
-                        entry.category,
-                        entry.subcategory,
-                        entry.description,
-                        entry.reporter,
-                        entry.coin,
-                        entry.severity,
-                        entry.getID()
-                    ]
-                );
-            }
+            await run(
+                "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
+                {
+                    $id: entry.getID(),
+                    $name: entry.getHostname(),
+                    $url: entry.url,
+                    $hostname: entry.getHostname(),
+                    $path: entry.path,
+                    $category: entry.category,
+                    $subcategory: entry.subcategory,
+                    $description: entry.description,
+                    $reporter: entry.reporter,
+                    $coin: entry.coin,
+                    $severity: entry.severity
+                }
+            );
         })
     );
     await Promise.all(
         verified.map(async entry => {
-            const id = utils.sha3(entry.url).substring(2, 8);
-            const entryExists = await get('SELECT * FROM entries WHERE id=?', [id]);
-            if (!entryExists) {
-                await run(
-                    "INSERT OR IGNORE INTO entries VALUES (?,?,'verified',?,?,?,null,null,null,?,null,null,null,null,null,null,null)",
-                    [
-                        id,
-                        entry.name,
-                        entry.url,
-                        url.parse(entry.url).hostname,
-                        entry.featured,
-                        entry.description
-                    ]
-                );
-                await Promise.all(
-                    (entry.addresses || []).map(address =>
-                        run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [address, id])
-                    )
-                );
-            } else {
-                await run('UPDATE entries SET name=?,description=? WHERE id=?', [
-                    entry.name,
-                    entry.description,
-                    id
-                ]);
-            }
+            await run(
+                "INSERT INTO entries(id,name,type,url,hostname,featured,description) VALUES ($id,$name,'verified',$url,$hostname,$featured,$description) ON CONFLICT(id) DO UPDATE SET name=$name,description=$description,featured=$featured WHERE id=$id",
+                {
+                    $id: utils.sha3(entry.url).substring(2, 8),
+                    $name: entry.name,
+                    $url: entry.url,
+                    $hostname: url.parse(entry.url).hostname,
+                    $featured: entry.featured,
+                    $description: entry.description
+                }
+            );
         })
     );
+    db.run('COMMIT');
 };
 
 export const priceUpdate = async (): Promise<void> => {

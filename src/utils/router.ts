@@ -64,6 +64,9 @@ router.get('/v1/stats', async (req, res) =>
             ),
             subcategories: await db.all(
                 'SELECT subcategory,count(subcategory) as count FROM entries WHERE subcategory IS NOT NULL GROUP BY subcategory'
+            ),
+            statuses: await db.all(
+                'SELECT status,count(status) as count FROM entries WHERE status IS NOT NULL GROUP BY status'
             )
         }
     })
