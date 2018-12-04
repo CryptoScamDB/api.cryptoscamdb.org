@@ -84,7 +84,7 @@ export const readEntries = async (): Promise<void> => {
     const verifiedFile = await fs.readFile('./data/whitelist_urls.yaml', 'utf8');
     const scams = yaml.safeLoad(scamsFile).map(entry => new Scam(entry));
     const verified = yaml.safeLoad(verifiedFile);
-    db.run('BEGIN TRANSACTION');
+    await run('BEGIN TRANSACTION');
     await Promise.all(
         scams.map(async entry => {
             await run(
@@ -120,7 +120,7 @@ export const readEntries = async (): Promise<void> => {
             );
         })
     );
-    db.run('COMMIT');
+    await run('COMMIT');
 };
 
 export const priceUpdate = async (): Promise<void> => {
