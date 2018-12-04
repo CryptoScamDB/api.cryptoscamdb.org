@@ -9,6 +9,8 @@ import config from '../utils/config';
 const debug = Debug('update');
 const db = new sqlite3.Database('./data/cache.db');
 
+let updated = [];
+
 const all = (query, data = []) => {
     return new Promise((resolve, reject) => {
         db.all(query, data, function(error, rows) {
@@ -20,6 +22,14 @@ const all = (query, data = []) => {
         });
     });
 };
+
+/* Push all queue items to parent process */
+setInterval(() => {
+    if (updated.length > 0) {
+        process.send(updated);
+        updated = [];
+    }
+}, 500);
 
 if (!process.send) {
     throw new Error('This script can only run as a child process');
@@ -35,22 +45,20 @@ if (!process.send) {
 
     /* Update all scams which weren't updated recently */
     await Promise.all(
-        scams
-            .map(scam => new Scam())
-            .map(async scam => {})
-            .map(async scam => {
-                if (config.lookups.HTTP.enabled) {
-                    await scam.getStatus();
-                } /* Update status */
-                if (config.lookups.DNS.IP.enabled) {
-                    await scam.getIP();
-                } /* Update IP */
-                if (config.lookups.DNS.NS.enabled) {
-                    await scam.getNameservers();
-                } /* Update nameservers */
+        scams.map(scam => new Scam(scam)).map(async scam => {
+            if (config.lookups.HTTP.enabled) {
+                await scam.getStatus();
+            } /* Update status */
+            if (config.lookups.DNS.IP.enabled) {
+                await scam.getIP();
+            } /* Update IP */
+            if (config.lookups.DNS.NS.enabled) {
+                await scam.getNameservers();
+            } /* Update nameservers */
 
-                /* Return updated data to parent process */
-                process.send({
+            if (scam.ip || scam.nameservers || scam.status || scam.statusCode) {
+                /* Push updated data to queue */
+                updated.push({
                     id: scam.id,
                     ip: scam.ip,
                     nameservers: scam.nameservers,
@@ -58,9 +66,9 @@ if (!process.send) {
                     statusCode: scam.statusCode,
                     updated: Date.now()
                 });
-            })
+            }
+        })
     );
 
     debug('Updating scams completed!');
-    //process.exit(1);
 })();
