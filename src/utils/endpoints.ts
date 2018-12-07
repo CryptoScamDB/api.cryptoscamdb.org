@@ -1,4 +1,4 @@
-interface ConfigCoin {
+export interface ConfigCoin {
     ticker: string;
     priceSource: string;
     priceEndpoint: string;
@@ -6,6 +6,7 @@ interface ConfigCoin {
     addressEndpoint: string;
     decimal: number;
     regex: string;
+    blockExplorer: string;
 }
 
 export default [
@@ -17,7 +18,8 @@ export default [
             'https://api.etherscan.io/api?module=account&action=balance&tag=latest&address=',
         addressEndpoint: 'result',
         decimal: 18,
-        regex: '^0x?[0-9A-Fa-f]{40,42}$'
+        regex: '^0x?[0-9A-Fa-f]{40,42}$',
+        blockExplorer: 'https://etherscan.io/address/'
     },
     {
         ticker: 'ETC',
@@ -27,7 +29,8 @@ export default [
             'https://blockscout.com/etc/mainnet/api?module=account&action=balance&address=',
         addressEndpoint: 'result',
         decimal: 18,
-        regex: '^0x?[0-9A-Fa-f]{40,42}$'
+        regex: '^0x?[0-9A-Fa-f]{40,42}$',
+        blockExplorer: 'https://blockscout.com/etc/mainnet/address/'
     },
     {
         ticker: 'BTC',
@@ -36,7 +39,8 @@ export default [
         addressLookUp: 'https://api.blockcypher.com/v1/btc/main/addrs/',
         addressEndpoint: 'balance',
         decimal: 8,
-        regex: '^([13][a-km-zA-HJ-NP-Z1-9]{25,34})'
+        regex: '^([13][a-km-zA-HJ-NP-Z1-9]{25,34})',
+        blockExplorer: 'https://www.blockchain.com/btc/address/'
     },
     {
         ticker: 'BCH',
@@ -46,7 +50,8 @@ export default [
         addressEndpoint: 'data.balance',
         decimal: 8,
         regex:
-            '^([13][a-km-zA-HJ-NP-Z1-9]{25,34})|^((bitcoincash:)?(q|p)[a-z0-9]{41})|^((BITCOINCASH:)?(Q|P)[A-Z0-9]{41})$'
+            '^([13][a-km-zA-HJ-NP-Z1-9]{25,34})|^((bitcoincash:)?(q|p)[a-z0-9]{41})|^((BITCOINCASH:)?(Q|P)[A-Z0-9]{41})$',
+        blockExplorer: 'https://explorer.bitcoin.com/bch/address/'
     },
     {
         ticker: 'LTC',
@@ -55,6 +60,7 @@ export default [
         addressLookUp: 'https://api.blockcypher.com/v1/ltc/main/addrs/',
         addressEndpoint: 'balance',
         decimal: 8,
-        regex: '^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$'
+        regex: '^[LM3][a-km-zA-HJ-NP-Z1-9]{26,33}$',
+        blockExplorer: 'https://live.blockcypher.com/ltc/address/'
     }
 ];

@@ -106,6 +106,12 @@ router.get('/v1/inactives', (req, res) =>
 router.get('/v1/actives', (req, res) =>
     res.json({ success: true, result: db.read().index.actives })
 );
+router.get('/v1/coininfo/:coin', async (req, res) => {
+    res.json({
+        success: true,
+        result: db.read().coininfo.find(entry => (entry.ticker = req.params.coin))
+    });
+});
 router.get('/v1/blacklist', (req, res) => res.json(db.read().index.blacklist));
 router.get('/v1/whitelist', (req, res) => res.json(db.read().index.whitelist));
 router.get('/v1/reportedlist', (req, res) => res.json(db.read().reported));
