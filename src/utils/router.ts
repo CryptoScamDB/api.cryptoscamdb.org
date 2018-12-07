@@ -109,7 +109,7 @@ router.get('/v1/actives', (req, res) =>
 router.get('/v1/coininfo/:coin', async (req, res) => {
     res.json({
         success: true,
-        result: db.read().coininfo.find(entry => (entry.ticker = req.params.coin))
+        result: db.read().coininfo.find(entry => entry.ticker === req.params.coin.toUpperCase())
     });
 });
 router.get('/v1/blacklist', (req, res) => res.json(db.read().index.blacklist));
@@ -359,7 +359,8 @@ router.get('/v1/balance/:coin/:address', async (req, res) => {
             const usdIndex = db.read().prices.cryptos.findIndex(entry => entry.ticker === coin);
             const usdPrice = db.read().prices.cryptos[usdIndex];
             const value = balance * Math.pow(10, Math.round(-1 * decimal));
-            const blockexplorer = coins.find(entry => entry.ticker === coin).addressLookUp;
+            const blockexplorer = db.read().coininfo.find(entry => entry.ticker === coin)
+                .blockExplorer;
             res.json({
                 success: true,
                 blockexplorer: blockexplorer + req.params.address,
