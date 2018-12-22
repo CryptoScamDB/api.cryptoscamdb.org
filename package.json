@@ -55,7 +55,7 @@
     "compression": "1.7.3",
     "cross-env": "5.2.0",
     "dateformat": "3.0.3",
-    "debug": "4.1.0",
+    "debug": "4.1.1",
     "download": "7.1.0",
     "esdb-categorize": "0.0.5",
     "eth-phishing-detect": "1.1.13",
