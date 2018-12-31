@@ -76,7 +76,7 @@
   },
   "devDependencies": {
     "@types/debug": "0.0.31",
-    "@types/download": "6.2.3",
+    "@types/download": "6.2.4",
     "@types/express": "4.16.0",
     "@types/fs-extra": "5.0.4",
     "@types/helmet": "0.0.42",
