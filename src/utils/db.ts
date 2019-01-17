@@ -13,6 +13,7 @@ import Coins from '../models/coins';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
 import coins from './endpoints';
+import { pullRaw } from './github';
 
 const debug = Debug('db');
 
@@ -71,6 +72,10 @@ export const readEntries = async (): Promise<void> => {
         path.join(__dirname, '../../data/whitelist_urls.yaml'),
         'utf8'
     );
+    const etherscamdbFile = await fs.readFile(
+        path.join(__dirname, '../../data/etherscamdb_blacklist.yaml'),
+        'utf8'
+    );
     const cacheExists = await fs.pathExists('./cache.db');
     if (!cacheExists) {
         yaml.safeLoad(scamsFile)
@@ -82,6 +87,10 @@ export const readEntries = async (): Promise<void> => {
         const cacheFile = await fs.readFile('./cache.db', 'utf8');
         Object.assign(db, serialijse.deserialize(cacheFile));
         yaml.safeLoad(scamsFile)
+            .filter(entry => !db.scams.find(scam => scam.url === entry.url))
+            .map(entry => new Scam(entry))
+            .forEach(entry => db.scams.push(entry));
+        yaml.safeLoad(etherscamdbFile)
             .filter(entry => !db.scams.find(scam => scam.url === entry.url))
             .map(entry => new Scam(entry))
             .forEach(entry => db.scams.push(entry));
@@ -145,6 +154,7 @@ export const exitHandler = (): void => {
 };
 
 export const init = async (): Promise<void> => {
+    await pullRaw();
     await readEntries();
     await module.exports.priceUpdate();
     await updateIndex();
@@ -177,7 +187,7 @@ export const persist = async (): Promise<void> => {
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
     coins.forEach(async each => {
-    db.prices.cryptos = [];
+        db.prices.cryptos = [];
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
         const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
         debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
