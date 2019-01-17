@@ -12,8 +12,8 @@ import EntryWrapper from '../models/entrywrapper';
 import Coins from '../models/coins';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
-import coins from './endpoints';
 import { pullRaw } from './github';
+import coins, { ConfigCoin } from './endpoints';
 
 const debug = Debug('db');
 
@@ -37,6 +37,7 @@ interface Database {
     prices: {
         cryptos: Coins[];
     };
+    coininfo: ConfigCoin[];
     reported: EntryWrapper[];
 }
 
@@ -58,6 +59,7 @@ const db: Database = {
     prices: {
         cryptos: []
     },
+    coininfo: [],
     reported: []
 };
 
@@ -186,6 +188,7 @@ export const persist = async (): Promise<void> => {
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
+    db.coininfo = coins;
     coins.forEach(async each => {
         db.prices.cryptos = [];
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
