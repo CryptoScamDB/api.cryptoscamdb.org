@@ -214,9 +214,16 @@ export const createPR = async (): Promise<void> => {
                     if (successStatus.url) {
                         // Success
                         debug('Removing element: ' + JSON.stringify(entry, null, 4));
-                        db.reported = db.reported.filter(el => {
-                            return el !== entry;
-                        });
+                        const array = [];
+                        Promise.all(
+                            db.reported.map(el => {
+                                if (el.data.url !== entry.data.url) {
+                                    array.push(el);
+                                }
+                            })
+                        );
+                        db.reported = array; // Overwrote array
+
                         exitHandler();
                         debug('Url entry removed from report cache.');
                         debug(
@@ -268,17 +275,25 @@ export const addReport = async (entry: EntryWrapper) => {
 };
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
-    const output = await db.reported.find(el => {
-        debug('comparing ' + JSON.stringify(el) + ' to ' + JSON.stringify(entry));
-        return el === entry;
-    });
-    debug('output of checkReport: ' + output);
-    if (output === undefined) {
+    let output = false;
+    await Promise.all(
+        db.reported.map(en => {
+            if (entry.data.url === en.data.url) {
+                output = true;
+            }
+        })
+    );
+
+    if (output) {
         debug(
             'Input entry ' +
                 JSON.stringify(entry, null, 2) +
                 ' matches ' +
-                JSON.stringify(db.reported[db.reported.findIndex(el => el === entry)], null, 2)
+                JSON.stringify(
+                    db.reported[await db.reported.findIndex(el => el.data.url === entry.data.url)],
+                    null,
+                    2
+                )
         );
         return true;
     } else {
