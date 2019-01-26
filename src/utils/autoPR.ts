@@ -1,6 +1,9 @@
 import { safeDump } from 'js-yaml';
+import * as Debug from 'debug';
 import gitProcess from '../classes/github.class';
 import config from './config';
+
+const debug = Debug('autoPR');
 
 export const autoPR = async (input: any, githubKey: string): Promise<any> => {
     return new Promise(async (resolve, reject) => {
@@ -15,6 +18,7 @@ export const autoPR = async (input: any, githubKey: string): Promise<any> => {
                 safeDump(input, { lineWidth: 99999999, indent: 4 })
             );
         } catch (e) {
+            debug(e);
             resolve(e);
         }
         try {
@@ -33,6 +37,7 @@ export const autoPR = async (input: any, githubKey: string): Promise<any> => {
             }
         } catch (e) {
             await fork.delete();
+            debug(e);
             resolve(e);
         }
     });
