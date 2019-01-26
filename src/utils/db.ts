@@ -213,18 +213,32 @@ export const createPR = async (): Promise<void> => {
                 if (successStatus.success) {
                     if (successStatus.url) {
                         // Success
+                        debug('Removing element: ' + JSON.stringify(entry, null, 4));
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
                         exitHandler();
                         debug('Url entry removed from report cache.');
+                        debug(
+                            'Report Cache: ' +
+                                JSON.stringify(db.reported, null, 4) +
+                                ' - ' +
+                                db.reported.length
+                        );
                     } else {
                         // Success
+                        debug('Removing element: ' + JSON.stringify(entry, null, 4));
                         db.reported = db.reported.filter(el => {
                             return el !== entry;
                         });
                         exitHandler();
                         debug('Entry removed from report cache.');
+                        debug(
+                            'Report Cache: ' +
+                                JSON.stringify(db.reported, null, 4) +
+                                ' - ' +
+                                db.reported.length
+                        );
                     }
                 } else {
                     // Failure
