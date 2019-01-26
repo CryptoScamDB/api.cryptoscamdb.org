@@ -1,5 +1,5 @@
 const github = require('octonode');
-const Repo = require('./Repo.class');
+const Repo = require('./repo.class');
 
 export default class Github {
     client?: any;
