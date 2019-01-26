@@ -269,10 +269,11 @@ export const addReport = async (entry: EntryWrapper) => {
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
     const output = await db.reported.find(el => {
+        debug('comparing ' + JSON.stringify(el) + ' to ' + JSON.stringify(entry));
         return el === entry;
     });
     debug('output of checkReport: ' + output);
-    if (output) {
+    if (output === undefined) {
         debug(
             'Input entry ' +
                 JSON.stringify(entry, null, 2) +
