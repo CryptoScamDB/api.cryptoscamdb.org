@@ -13,6 +13,7 @@ import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
 import { utils } from 'web3';
 import { pullRaw } from './github';
+import * as crypto from 'crypto';
 import coins, { ConfigCoin } from './endpoints';
 
 const debug = Debug('db');
@@ -26,9 +27,15 @@ export const init = async (): Promise<void> => {
         'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry INTEGER, PRIMARY KEY(address,entry))'
     );
     await this.run(
+        'CREATE TABLE IF NOT EXISTS nameservers (nameserver TEXT, entry INTEGER, PRIMARY KEY(nameserver,entry))'
+    );
+    await this.run(
         'CREATE TABLE IF NOT EXISTS prices (ticker TEXT, price INTEGER, PRIMARY KEY(ticker))'
     );
     await this.run('CREATE TABLE IF NOT EXISTS reported (url TEXT, PRIMARY KEY(url))');
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS checksums (filename TEXT, hash TEXT, PRIMARY KEY(filename))'
+    );
     await readEntries();
     await priceUpdate();
     if (config.interval.priceLookup > 0) {
@@ -39,7 +46,7 @@ export const init = async (): Promise<void> => {
 export const get = (query, data?) => {
     return new Promise((resolve, reject) => {
         debug('GET %s %o', query, data);
-        db.get(query, data, function(error, row) {
+        db.get(query, data, (error, row) => {
             if (error) {
                 debug('ERROR %s %o', query, data);
                 reject(error);
@@ -50,11 +57,10 @@ export const get = (query, data?) => {
     });
 };
 
-
 export const all = (query, data?) => {
     return new Promise((resolve, reject) => {
         debug('ALL %s %o', query, data);
-        db.all(query, data, function(error, rows) {
+        db.all(query, data, (error, rows) => {
             if (error) {
                 debug('ERROR %s %o', query, data);
                 reject(error);
@@ -63,9 +69,9 @@ export const all = (query, data?) => {
             }
         });
     });
-}
+};
 
-export const init = async (): Promise<void> => {
+/*export const init = async (): Promise<void> => {
     await pullRaw();
     await readEntries();
     await module.exports.priceUpdate();
@@ -81,7 +87,7 @@ export const init = async (): Promise<void> => {
     process.once('beforeExit', exitHandler);
     process.once('SIGINT', exitHandler);
     process.once('SIGTERM', exitHandler);
-};
+};*/
 
 export const run = (query, data?) => {
     return new Promise((resolve, reject) => {
@@ -101,51 +107,134 @@ export const run = (query, data?) => {
 export const readEntries = async (): Promise<void> => {
     debug('Reading entries...');
     const scamsFile = await fs.readFile('./data/blacklist_urls.yaml', 'utf8');
+    const scamsChecksum = crypto
+        .createHash('sha256')
+        .update(scamsFile)
+        .digest('hex');
+    const oldScamsChecksum: any = await get(
+        "SELECT hash from checksums WHERE filename='blacklist_urls.yaml'"
+    );
+    if (
+        !oldScamsChecksum ||
+        !('hash' in oldScamsChecksum) ||
+        oldScamsChecksum.hash !== scamsChecksum
+    ) {
+        const scams = yaml.safeLoad(scamsFile).map(entry => new Scam(entry));
+        await run('BEGIN TRANSACTION');
+        await Promise.all(
+            scams.map(async entry => {
+                await run(
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
+                    {
+                        $id: entry.getID(),
+                        $name: entry.getHostname(),
+                        $url: entry.url,
+                        $hostname: entry.getHostname(),
+                        $path: entry.path,
+                        $category: entry.category,
+                        $subcategory: entry.subcategory,
+                        $description: entry.description,
+                        $reporter: entry.reporter,
+                        $coin: entry.coin,
+                        $severity: entry.severity
+                    }
+                );
+                const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
+                    entry.getID()
+                ]);
+                await Promise.all(
+                    addresses.map(async address => {
+                        if (!(address.address in (entry.addresses || []))) {
+                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
+                                address.address,
+                                entry.getID()
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(async address => {
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                            address,
+                            entry.getID()
+                        ]);
+                    })
+                );
+            })
+        );
+        await run(
+            'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
+            {
+                $filename: 'blacklist_urls.yaml',
+                $hash: scamsChecksum
+            }
+        );
+        await run('COMMIT');
+    }
     const verifiedFile = await fs.readFile('./data/whitelist_urls.yaml', 'utf8');
-    const scams = yaml.safeLoad(scamsFile).map(entry => new Scam(entry));
-    const verified = yaml.safeLoad(verifiedFile);
-    await run('BEGIN TRANSACTION');
-    await Promise.all(
-        scams.map(async entry => {
-            await run(
-                "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
-                {
-                    $id: entry.getID(),
-                    $name: entry.getHostname(),
-                    $url: entry.url,
-                    $hostname: entry.getHostname(),
-                    $path: entry.path,
-                    $category: entry.category,
-                    $subcategory: entry.subcategory,
-                    $description: entry.description,
-                    $reporter: entry.reporter,
-                    $coin: entry.coin,
-                    $severity: entry.severity
-                }
-            );
-        })
+    const verifiedChecksum = crypto
+        .createHash('sha256')
+        .update(verifiedFile)
+        .digest('hex');
+    const oldVerifiedChecksum: any = await get(
+        "SELECT hash from checksums WHERE filename='whitelist_urls.yaml'"
     );
-    await Promise.all(
-        verified.map(async entry => {
-            await run(
-                "INSERT INTO entries(id,name,type,url,hostname,featured,description) VALUES ($id,$name,'verified',$url,$hostname,$featured,$description) ON CONFLICT(id) DO UPDATE SET name=$name,description=$description,featured=$featured WHERE id=$id",
-                {
-                    $id: utils.sha3(entry.url).substring(2, 8),
-                    $name: entry.name,
-                    $url: entry.url,
-                    $hostname: url.parse(entry.url).hostname,
-                    $featured: entry.featured,
-                    $description: entry.description
-                }
-            );
-        })
-    );
-    await run('COMMIT');
+    if (
+        !oldVerifiedChecksum ||
+        !('hash' in oldVerifiedChecksum) ||
+        oldVerifiedChecksum.hash !== verifiedChecksum
+    ) {
+        const verified = yaml.safeLoad(verifiedFile);
+        await run('BEGIN TRANSACTION');
+        await Promise.all(
+            verified.map(async entry => {
+                await run(
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,description) VALUES ($id,$name,'verified',$url,$hostname,$featured,$description) ON CONFLICT(id) DO UPDATE SET name=$name,description=$description,featured=$featured WHERE id=$id",
+                    {
+                        $id: utils.sha3(entry.url).substring(2, 8),
+                        $name: entry.name,
+                        $url: entry.url,
+                        $hostname: url.parse(entry.url).hostname,
+                        $featured: entry.featured,
+                        $description: entry.description
+                    }
+                );
+                const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
+                    utils.sha3(entry.url).substring(2, 8)
+                ]);
+                await Promise.all(
+                    addresses.map(async address => {
+                        if (!(address.address in (entry.addresses || []))) {
+                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
+                                address.address,
+                                utils.sha3(entry.url).substring(2, 8)
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(async address => {
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                            address,
+                            utils.sha3(entry.url).substring(2, 8)
+                        ]);
+                    })
+                );
+            })
+        );
+        await run(
+            'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
+            {
+                $filename: 'whitelist_urls.yaml',
+                $hash: verifiedChecksum
+            }
+        );
+        await run('COMMIT');
+    }
 };
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
-    db.coininfo = coins;
     coins.forEach(async each => {
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
         const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
@@ -214,10 +303,10 @@ export const checkDuplicate = async (entry: Entry): Promise<any> => {
     if (entry.addresses) {
         entry.addresses.forEach(async address => {
             const dbEntry: any = await get('SELECT * FROM addresses WHERE address=?', [address]);
-            if (dbEntry && dbEntry.type == 'scam') {
+            if (dbEntry && dbEntry.type === 'scam') {
                 return { duplicate: true, type: 'Blacklisted address already exists.' };
             }
-            if (dbEntry && dbEntry.type == 'verified') {
+            if (dbEntry && dbEntry.type === 'verified') {
                 return { duplicate: true, type: 'Whitelisted address already exists.' };
             }
         });
@@ -226,20 +315,20 @@ export const checkDuplicate = async (entry: Entry): Promise<any> => {
     if (entry.url || entry.name) {
         if (entry.url) {
             const dbEntry: any = await get('SELECT * FROM entries WHERE url=?', [entry.url]);
-            if (dbEntry && dbEntry.type == 'scam') {
+            if (dbEntry && dbEntry.type === 'scam') {
                 return { duplicate: true, type: 'Blacklisted url already exists.' };
             }
-            if (dbEntry && dbEntry.type == 'verified') {
+            if (dbEntry && dbEntry.type === 'verified') {
                 return { duplicate: true, type: 'Whitelisted url already exists.' };
             }
         }
 
         if (entry.name) {
             const dbEntry: any = await get('SELECT * FROM entries WHERE name=?', [entry.name]);
-            if (dbEntry && dbEntry.type == 'scam') {
+            if (dbEntry && dbEntry.type === 'scam') {
                 return { duplicate: true, type: 'Blacklisted name already exists.' };
             }
-            if (dbEntry && dbEntry.type == 'verified') {
+            if (dbEntry && dbEntry.type === 'verified') {
                 return { duplicate: true, type: 'Whitelisted name already exists.' };
             }
         }

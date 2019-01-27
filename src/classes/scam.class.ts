@@ -20,7 +20,7 @@ export default class Scam implements Entry {
     coin?: string;
     ip?: string;
     abusereport?: string;
-    nameservers?: string[];
+    nameservers: string[];
     severity?: number;
     statusCode?: number;
     status?: 'Active' | 'Inactive' | 'Offline' | 'Suspended';
@@ -38,6 +38,7 @@ export default class Scam implements Entry {
             this.description = scamData.description;
             this.addresses = scamData.addresses;
             this.reporter = scamData.reporter;
+            this.nameservers = [];
             this.severity = scamData.severity || 1;
             if (this.path || this.url) {
                 this.path = scamData.path || '/*';
@@ -69,7 +70,7 @@ export default class Scam implements Entry {
 
     /* Returns nameservers from URL */
     async getNameservers(): Promise<string[]> {
-        this.nameservers = await dns.getNS(this.url);
+        this.nameservers = (await dns.getNS(this.url)) || [];
         return this.nameservers;
     }
 

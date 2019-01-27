@@ -18,14 +18,14 @@ interface JsonRet {
 export default async (params: string, coin: string): Promise<JsonRet> => {
     debug('Starting to check DB for address - ' + params + ' - ' + coin);
     const address: any = await db.get('SELECT * FROM addresses WHERE address=?', [params]);
-    if (address && address.type == 'verified') {
+    if (address && address.type === 'verified') {
         return {
             status: 'whitelisted',
             type: 'address',
             coin,
             entries: address
         };
-    } else if (address && address.type == 'scam') {
+    } else if (address && address.type === 'scam') {
         return {
             status: 'blocked',
             type: 'address',

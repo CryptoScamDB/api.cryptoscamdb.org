@@ -30,6 +30,27 @@ export const update = async (): Promise<void> => {
                     scam.updated,
                     scam.id
                 ]);
+                const nameservers: any = await db.all('SELECT * FROM nameservers WHERE entry=?', [
+                    scam.id
+                ]);
+                await Promise.all(
+                    nameservers.map(async nameserver => {
+                        if (!(nameserver.nameserver in scam.nameservers)) {
+                            await db.run('DELETE FROM nameservers WHERE nameserver=? AND entry=?', [
+                                nameserver.nameserver,
+                                nameserver.entry
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    scam.nameservers.map(async nameserver => {
+                        await db.run('INSERT OR IGNORE INTO nameservers VALUES (?,?)', [
+                            nameserver,
+                            scam.id
+                        ]);
+                    })
+                );
             })
         );
         await db.run('COMMIT');

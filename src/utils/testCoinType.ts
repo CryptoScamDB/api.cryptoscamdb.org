@@ -7,7 +7,8 @@ const debug = Debug('cointest');
 export const testCoinType = (address: string): Promise<any> => {
     return new Promise(async (resolve, reject) => {
         const cryptos = {};
-        db.read().prices.cryptos.forEach(coin => {
+        const prices: any = await db.all('SELECT * FROM prices');
+        (prices || []).forEach(coin => {
             cryptos[coin.ticker] = coin.price;
         });
         //debug(JSON.stringify(cryptos, null,4));

@@ -3,7 +3,6 @@ process.env.UV_THREADPOOL_SIZE = '128';
 import * as sqlite3 from 'sqlite3';
 import * as Debug from 'debug';
 import Scam from '../classes/scam.class';
-import * as fs from 'fs-extra';
 import config from '../utils/config';
 
 const debug = Debug('update');
@@ -13,7 +12,7 @@ let updated = [];
 
 const all = (query, data = []) => {
     return new Promise((resolve, reject) => {
-        db.all(query, data, function(error, rows) {
+        db.all(query, data, (error, rows) => {
             if (error) {
                 reject(error);
             } else {
@@ -45,29 +44,31 @@ if (!process.send) {
 
     /* Update all scams which weren't updated recently */
     await Promise.all(
-        scams.map(scam => new Scam(scam)).map(async scam => {
-            if (config.lookups.HTTP.enabled) {
-                await scam.getStatus();
-            } /* Update status */
-            if (config.lookups.DNS.IP.enabled) {
-                await scam.getIP();
-            } /* Update IP */
-            if (config.lookups.DNS.NS.enabled) {
-                await scam.getNameservers();
-            } /* Update nameservers */
+        scams
+            .map(scam => new Scam(scam))
+            .map(async scam => {
+                if (config.lookups.HTTP.enabled) {
+                    await scam.getStatus();
+                } /* Update status */
+                if (config.lookups.DNS.IP.enabled) {
+                    await scam.getIP();
+                } /* Update IP */
+                if (config.lookups.DNS.NS.enabled) {
+                    await scam.getNameservers();
+                } /* Update nameservers */
 
-            if (scam.ip || scam.nameservers || scam.status || scam.statusCode) {
-                /* Push updated data to queue */
-                updated.push({
-                    id: scam.id,
-                    ip: scam.ip,
-                    nameservers: scam.nameservers,
-                    status: scam.status,
-                    statusCode: scam.statusCode,
-                    updated: Date.now()
-                });
-            }
-        })
+                if (scam.ip || scam.nameservers || scam.status || scam.statusCode) {
+                    /* Push updated data to queue */
+                    updated.push({
+                        id: scam.id,
+                        ip: scam.ip,
+                        nameservers: scam.nameservers,
+                        status: scam.status,
+                        statusCode: scam.statusCode,
+                        updated: Date.now()
+                    });
+                }
+            })
     );
 
     debug('Updating scams completed!');
