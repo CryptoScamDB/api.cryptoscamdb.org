@@ -20,6 +20,11 @@ const pullDataFiles = async (): Promise<void> => {
         'data',
         { filename: 'blacklist_urls.yaml' }
     );
+    await download(
+        'https://raw.githubusercontent.com/mrluit/etherscamdb/master/_data/scams.yaml',
+        'data',
+        { filename: 'etherscamdb_blacklist.yaml' }
+    );
     debug('Done');
 };
 

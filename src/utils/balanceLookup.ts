@@ -9,8 +9,8 @@ export const balanceLookup = async (address: string, ticker: string): Promise<an
         const returned = flatten(
             await accountLookup(address, coin.addressLookUp, coin.addressEndpoint)
         );
-        if (returned.success === false) {
-            reject(0);
+        if (returned.success === false || returned.status === false) {
+            resolve({ balance: -1 });
         } else {
             const end = 'body.' + coin.addressEndpoint;
             const ethBalance = returned[end];

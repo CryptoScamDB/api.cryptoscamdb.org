@@ -12,7 +12,8 @@ import Coins from '../models/coins';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
 import { utils } from 'web3';
-import coins from './endpoints';
+import { pullRaw } from './github';
+import coins, { ConfigCoin } from './endpoints';
 
 const debug = Debug('db');
 const db = new sqlite3.Database('./data/cache.db');
@@ -49,6 +50,7 @@ export const get = (query, data?) => {
     });
 };
 
+
 export const all = (query, data?) => {
     return new Promise((resolve, reject) => {
         debug('ALL %s %o', query, data);
@@ -61,6 +63,24 @@ export const all = (query, data?) => {
             }
         });
     });
+}
+
+export const init = async (): Promise<void> => {
+    await pullRaw();
+    await readEntries();
+    await module.exports.priceUpdate();
+    await updateIndex();
+    await module.exports.persist();
+    if (config.interval.priceLookup > 0) {
+        setInterval(module.exports.priceUpdate, config.interval.priceLookup);
+    }
+    if (config.interval.databasePersist > 0) {
+        setInterval(module.exports.persist, config.interval.databasePersist);
+    }
+    process.stdin.resume();
+    process.once('beforeExit', exitHandler);
+    process.once('SIGINT', exitHandler);
+    process.once('SIGTERM', exitHandler);
 };
 
 export const run = (query, data?) => {
@@ -125,6 +145,7 @@ export const readEntries = async (): Promise<void> => {
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
+    db.coininfo = coins;
     coins.forEach(async each => {
         const ret = await priceLookup(each.priceSource, each.priceEndpoint);
         const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
