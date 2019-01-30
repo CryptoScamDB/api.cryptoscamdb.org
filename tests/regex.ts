@@ -3,8 +3,8 @@ import { expect } from 'chai';
 import * as db from '../src/utils/db';
 import * as reg from '../src/utils/testCoinType';
 
-describe('regex', () => {
-    this.timeout(30*1000);
+describe('regex', function () {
+    this.timeout(60000);
     before(async () => {
         await db.init();
     });
@@ -43,4 +43,4 @@ describe('regex', () => {
     })
         .slow(2000)
         .timeout(10000);
-}).timeout(60000);
+});
