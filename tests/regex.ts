@@ -1,8 +1,11 @@
 import 'mocha';
 import { expect } from 'chai';
+import * as db from '../src/utils/db';
 import * as reg from '../src/utils/testCoinType';
 
-describe('regex', () => {
+describe('regex', async () => {
+    await db.init();
+
     it('should correctly parse ETH addresses', async () => {
         const result = await reg.testCoinType('0x742d35cc6634c0532925a3b844bc454e4438f44e');
         expect(result.ticker).to.equal('ETH');

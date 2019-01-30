@@ -17,7 +17,7 @@ import * as crypto from 'crypto';
 import coins, { ConfigCoin } from './endpoints';
 
 const debug = Debug('db');
-const db = new sqlite3.Database('./data/cache.db');
+const db = new sqlite3.Database('cache.db');
 
 export const init = async (): Promise<void> => {
     await this.run(

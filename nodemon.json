@@ -1,6 +1,8 @@
 {
     "ignore": [
-        "data/*"
+        "data/*",
+        "cache.db",
+        "cache.db-journal"
     ],
     "ext": "ts",
     "exec": "ts-node src/app.ts"
