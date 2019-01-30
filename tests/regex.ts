@@ -4,6 +4,7 @@ import * as db from '../src/utils/db';
 import * as reg from '../src/utils/testCoinType';
 
 describe('regex', () => {
+    this.timeout(30*1000);
     before(async () => {
         await db.init();
     });
