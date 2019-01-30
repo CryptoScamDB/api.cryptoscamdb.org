@@ -2,7 +2,7 @@ import { parse } from 'url';
 import * as dns from '@cryptoscamdb/graceful-dns';
 import { lookup, getURLScan, URLScanResponse } from '../utils/lookup';
 import { Response } from 'request';
-import { utils } from 'web3';
+import { getID } from '../utils/getID';
 import Entry from '../models/entry';
 
 export default class Scam implements Entry {
@@ -49,7 +49,7 @@ export default class Scam implements Entry {
 
     /* Calculate ID of entry */
     getID(): string {
-        return utils.sha3(this.url).substring(2, 8);
+        return getID(this.name);
     }
 
     /* Returns either `false` or a request response */

@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 export default async (req: Request, res: Response) => {
     if (req.params.coin) {
         const coin: any = await db.get('SELECT * FROM prices WHERE ticker=?', [
-            req.params.coin.toLowerCase()
+            req.params.coin.toUpperCase()
         ]);
         if (coin) {
             res.json({

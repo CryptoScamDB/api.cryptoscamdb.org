@@ -11,7 +11,7 @@ import EntryWrapper from '../models/entrywrapper';
 import Coins from '../models/coins';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
-import { utils } from 'web3';
+import { getID } from './getID';
 import { pullRaw } from './github';
 import * as crypto from 'crypto';
 import coins, { ConfigCoin } from './endpoints';
@@ -24,10 +24,10 @@ export const init = async (): Promise<void> => {
         'CREATE TABLE IF NOT EXISTS entries (id TEXT, name TEXT, type TEXT, url TEXT, hostname TEXT, featured INTEGER, path TEXT, category TEXT, subcategory TEXT, description TEXT, reporter TEXT, coin TEXT, ip TEXT, severity INTEGER, statusCode INTEGER, status TEXT, updated INTEGER, PRIMARY KEY(id))'
     );
     await this.run(
-        'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry INTEGER, PRIMARY KEY(address,entry))'
+        'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry TEXT, PRIMARY KEY(address,entry))'
     );
     await this.run(
-        'CREATE TABLE IF NOT EXISTS nameservers (nameserver TEXT, entry INTEGER, PRIMARY KEY(nameserver,entry))'
+        'CREATE TABLE IF NOT EXISTS nameservers (nameserver TEXT, entry TEXT, PRIMARY KEY(nameserver,entry))'
     );
     await this.run(
         'CREATE TABLE IF NOT EXISTS prices (ticker TEXT, price INTEGER, PRIMARY KEY(ticker))'
@@ -171,7 +171,7 @@ export const readEntries = async (): Promise<void> => {
                 await run(
                     "INSERT INTO entries(id,name,type,url,hostname,featured,description) VALUES ($id,$name,'verified',$url,$hostname,$featured,$description) ON CONFLICT(id) DO UPDATE SET name=$name,description=$description,featured=$featured WHERE id=$id",
                     {
-                        $id: utils.sha3(entry.url).substring(2, 8),
+                        $id: getID(entry.name),
                         $name: entry.name,
                         $url: entry.url,
                         $hostname: url.parse(entry.url).hostname,
@@ -180,14 +180,14 @@ export const readEntries = async (): Promise<void> => {
                     }
                 );
                 const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
-                    utils.sha3(entry.url).substring(2, 8)
+                    getID(entry.name)
                 ]);
                 await Promise.all(
                     addresses.map(async address => {
                         if (!(address.address in (entry.addresses || []))) {
                             await run('DELETE FROM addresses WHERE address=? AND entry=?', [
                                 address.address,
-                                utils.sha3(entry.url).substring(2, 8)
+                                getID(entry.name)
                             ]);
                         }
                     })
@@ -196,7 +196,7 @@ export const readEntries = async (): Promise<void> => {
                     (entry.addresses || []).map(async address => {
                         await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
                             address,
-                            utils.sha3(entry.url).substring(2, 8)
+                            getID(entry.name)
                         ]);
                     })
                 );

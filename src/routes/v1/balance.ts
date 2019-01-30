@@ -19,7 +19,7 @@ export default async (req: Request, res: Response) => {
             const decimal = Number(coins[index].decimal);
             const balance = Number(returnedBal.balance);
             const usdPrice: any = await db.get('SELECT * FROM prices WHERE ticker=?', [
-                req.params.coin
+                req.params.coin.toUpperCase()
             ]);
             const value = balance * Math.pow(10, Math.round(-1 * decimal));
             const blockexplorer = coins.find(entry => entry.ticker === coin).blockExplorer;
