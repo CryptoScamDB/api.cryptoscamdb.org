@@ -123,6 +123,10 @@ export const serve = async (electronApp?: any): Promise<void> => {
     if (config.autoPull.enabled) {
         setInterval(github.pullData, config.autoPull.interval);
     }
+
+    if (config.interval.priceLookup > 0) {
+        setInterval(db.priceUpdate, config.interval.priceLookup);
+    }
 };
 
 if (!module.parent) {

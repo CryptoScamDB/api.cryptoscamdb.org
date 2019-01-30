@@ -38,9 +38,6 @@ export const init = async (): Promise<void> => {
     );
     await readEntries();
     await priceUpdate();
-    if (config.interval.priceLookup > 0) {
-        setInterval(priceUpdate, config.interval.priceLookup);
-    }
 };
 
 export const get = (query, data?) => {
@@ -235,12 +232,14 @@ export const readEntries = async (): Promise<void> => {
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
-    coins.forEach(async each => {
-        const ret = await priceLookup(each.priceSource, each.priceEndpoint);
-        const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
-        debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
-        await run('INSERT OR REPLACE INTO prices VALUES (?,?)', [each.ticker, priceUSD]);
-    });
+    await Promise.all(
+        coins.map(async each => {
+            const ret = await priceLookup(each.priceSource, each.priceEndpoint);
+            const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
+            debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
+            await run('INSERT OR REPLACE INTO prices VALUES (?,?)', [each.ticker, priceUSD]);
+        })
+    );
 };
 
 export const createPR = async (): Promise<void> => {
