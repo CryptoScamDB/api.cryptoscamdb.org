@@ -42,4 +42,4 @@ describe('regex', () => {
     })
         .slow(2000)
         .timeout(10000);
-});
+}).timeout(60000);
