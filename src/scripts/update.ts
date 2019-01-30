@@ -6,7 +6,7 @@ import Scam from '../classes/scam.class';
 import config from '../utils/config';
 
 const debug = Debug('update');
-const db = new sqlite3.Database('./data/cache.db');
+const db = new sqlite3.Database('./cache.db');
 
 let updated = [];
 
@@ -16,6 +16,7 @@ const all = (query, data = []) => {
             if (error) {
                 reject(error);
             } else {
+                debug('ROWS.length: ' + rows.length);
                 resolve(rows);
             }
         });
@@ -41,7 +42,8 @@ if (!process.send) {
         "SELECT * FROM entries WHERE type='scam' AND updated < ? ORDER BY updated ASC",
         [Date.now() - config.interval.cacheExpiration]
     );
-
+    debug('Length of scams to update: ' + scams.length);
+    debug('Time to execute: ' + (Date.now() - config.interval.cacheExpiration));
     /* Update all scams which weren't updated recently */
     await Promise.all(
         scams
@@ -72,4 +74,7 @@ if (!process.send) {
     );
 
     debug('Updating scams completed!');
+    setTimeout(() => {
+        process.exit();
+    }, 500);
 })();
