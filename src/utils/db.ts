@@ -36,6 +36,7 @@ export const init = async (): Promise<void> => {
     await this.run(
         'CREATE TABLE IF NOT EXISTS checksums (filename TEXT, hash TEXT, PRIMARY KEY(filename))'
     );
+    await pullRaw();
     await readEntries();
     await priceUpdate();
 };
@@ -67,24 +68,6 @@ export const all = (query, data?) => {
         });
     });
 };
-
-/*export const init = async (): Promise<void> => {
-    await pullRaw();
-    await readEntries();
-    await module.exports.priceUpdate();
-    await updateIndex();
-    await module.exports.persist();
-    if (config.interval.priceLookup > 0) {
-        setInterval(module.exports.priceUpdate, config.interval.priceLookup);
-    }
-    if (config.interval.databasePersist > 0) {
-        setInterval(module.exports.persist, config.interval.databasePersist);
-    }
-    process.stdin.resume();
-    process.once('beforeExit', exitHandler);
-    process.once('SIGINT', exitHandler);
-    process.once('SIGTERM', exitHandler);
-};*/
 
 export const run = (query, data?) => {
     return new Promise((resolve, reject) => {
