@@ -24,7 +24,9 @@ export default async (req: Request, res: Response) => {
             addresses: addresses.count,
             ips: ips.count,
             actives: statuses.find(en => en.status === 'Active').count,
-            inactives: statuses.find(en => en.status === 'Inactive').count,
+            inactives:
+                statuses.find(en => en.status === 'Inactive').count +
+                statuses.find(en => en.status === 'Offline').count,
             offline: statuses.find(en => en.status === 'Offline').count,
             suspended: statuses.find(en => en.status === 'Suspended').count,
             reporters: await db.all(

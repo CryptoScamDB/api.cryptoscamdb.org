@@ -86,6 +86,7 @@ export const run = (query, data?) => {
 /* Read entries from yaml files and load them into DB object */
 export const readEntries = async (): Promise<void> => {
     debug('Reading entries...');
+    /* Add blacklist_urls to cache.cb */
     const scamsFile = await fs.readFile('./data/blacklist_urls.yaml', 'utf8');
     const scamsChecksum = crypto
         .createHash('sha256')
@@ -151,6 +152,7 @@ export const readEntries = async (): Promise<void> => {
         );
         await run('COMMIT');
     }
+    /* Add whitelist_urls to cache.cb */
     const verifiedFile = await fs.readFile('./data/whitelist_urls.yaml', 'utf8');
     const verifiedChecksum = crypto
         .createHash('sha256')
@@ -207,6 +209,74 @@ export const readEntries = async (): Promise<void> => {
             {
                 $filename: 'whitelist_urls.yaml',
                 $hash: verifiedChecksum
+            }
+        );
+        await run('COMMIT');
+    }
+
+    /* Add etherscamdb_blacklist to cache.db */
+    const etherscamdbFile = await fs.readFile('./data/etherscamdb_blacklist.yaml', 'utf8');
+    const etherscamdbChecksum = crypto
+        .createHash('sha256')
+        .update(etherscamdbFile)
+        .digest('hex');
+    const oldESDBScamsChecksum: any = await get(
+        "SELECT hash from checksums WHERE filename='etherscamdb_blacklist.yaml'"
+    );
+    if (
+        !oldESDBScamsChecksum ||
+        !('hash' in oldESDBScamsChecksum) ||
+        oldESDBScamsChecksum.hash !== etherscamdbChecksum
+    ) {
+        debug('Adding ESDB scams now...');
+        const etherscamdbscams = yaml.safeLoad(etherscamdbFile).map(entry => new Scam(entry));
+        await run('BEGIN TRANSACTION');
+        await Promise.all(
+            etherscamdbscams.map(async entry => {
+                await run(
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
+                    {
+                        $id: entry.getID(),
+                        $name: entry.getHostname(),
+                        $url: entry.url,
+                        $hostname: entry.getHostname(),
+                        $path: entry.path,
+                        $category: entry.category,
+                        $subcategory: entry.subcategory,
+                        $description: entry.description,
+                        $reporter: entry.reporter,
+                        $coin: entry.coin,
+                        $severity: entry.severity
+                    }
+                );
+                const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
+                    entry.getID()
+                ]);
+                await Promise.all(
+                    addresses.map(async address => {
+                        if (!(address.address in (entry.addresses || []))) {
+                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
+                                address.address,
+                                entry.getID()
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(async address => {
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                            address,
+                            entry.getID()
+                        ]);
+                    })
+                );
+            })
+        );
+        await run(
+            'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
+            {
+                $filename: 'etherscamdb_blacklist.yaml',
+                $hash: etherscamdbChecksum
             }
         );
         await run('COMMIT');
