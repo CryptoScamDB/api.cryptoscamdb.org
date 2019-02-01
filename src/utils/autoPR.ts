@@ -8,7 +8,7 @@ const debug = Debug('autoPR');
 export const autoPR = async (input: any, githubKey: string): Promise<any> => {
     return new Promise(async (resolve, reject) => {
         const process = new gitProcess(githubKey) as any;
-        const fork = (await process.fork('CryptoScamDB/blacklist', githubKey)) as any;
+        const fork = await process.fork('CryptoScamDB/blacklist', githubKey);
         let pr;
         try {
             /* Try to commit */

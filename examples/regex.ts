@@ -7,15 +7,8 @@ const addresses = [
     'LNT6qmyVbd7w3VCTXwvLrN6zTz5bmsWnkX',
     '15h6MrWynwLTwhhYWNjw1RqCrhvKv3ZBsi'
 ];
-const test = () => {
-    addresses.forEach(async address => {
-        //console.log(address);
-        try {
-            const data = await reg.testCoinType(address);
-            console.log(data);
-        } catch (e) {
-            console.log(e);
-        }
-    });
-};
-test();
+
+addresses.forEach(async address => {
+    const result = await reg.testCoinType(address);
+    console.log(address + ': ' + JSON.stringify(address));
+});

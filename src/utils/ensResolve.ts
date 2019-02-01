@@ -1,7 +1,7 @@
 const ENS = require('ethereum-ens');
 const Web3 = require('web3');
 
-export const resolve = async (ensname): Promise<any> => {
+export const resolve = async (ensname: string): Promise<any> => {
     // tslint:disable-next-line:no-shadowed-variable
     return new Promise(async (resolve, reject) => {
         Web3.providers.HttpProvider.prototype.sendAsync =

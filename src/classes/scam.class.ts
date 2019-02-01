@@ -2,7 +2,7 @@ import { parse } from 'url';
 import * as dns from '@cryptoscamdb/graceful-dns';
 import { lookup, getURLScan, URLScanResponse } from '../utils/lookup';
 import { Response } from 'request';
-import { utils } from 'web3';
+import { getID } from '../utils/getID';
 import Entry from '../models/entry';
 
 export default class Scam implements Entry {
@@ -20,7 +20,7 @@ export default class Scam implements Entry {
     coin?: string;
     ip?: string;
     abusereport?: string;
-    nameservers?: string[];
+    nameservers: string[];
     severity?: number;
     statusCode?: number;
     status?: 'Active' | 'Inactive' | 'Offline' | 'Suspended';
@@ -30,14 +30,15 @@ export default class Scam implements Entry {
     /* Create new Scam instance */
     constructor(scamData: Entry = {}) {
         if (scamData && scamData.url) {
-            this.id = this.getID(scamData.url);
             this.name = scamData.name;
             this.url = scamData.url;
+            this.id = this.getID();
             this.category = scamData.category;
             this.subcategory = scamData.subcategory;
             this.description = scamData.description;
             this.addresses = scamData.addresses;
             this.reporter = scamData.reporter;
+            this.nameservers = [];
             this.severity = scamData.severity || 1;
             if (this.path || this.url) {
                 this.path = scamData.path || '/*';
@@ -47,8 +48,8 @@ export default class Scam implements Entry {
     }
 
     /* Calculate ID of entry */
-    getID(url): string {
-        return utils.sha3(url).substring(2, 8);
+    getID(): string {
+        return getID(this.name);
     }
 
     /* Returns either `false` or a request response */
@@ -69,7 +70,7 @@ export default class Scam implements Entry {
 
     /* Returns nameservers from URL */
     async getNameservers(): Promise<string[]> {
-        this.nameservers = await dns.getNS(this.url);
+        this.nameservers = (await dns.getNS(this.url)) || [];
         return this.nameservers;
     }
 

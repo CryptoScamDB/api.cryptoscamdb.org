@@ -1,5 +1,6 @@
 node_modules
 npm-debug.log
 config.json
-cache.db
 data
+cache.db
+cache.db-journal
