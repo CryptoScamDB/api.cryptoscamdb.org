@@ -1,10 +1,9 @@
+import * as sqlite3 from 'sqlite3';
 import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
 import * as url from 'url';
 import * as path from 'path';
 import config from './config';
-import * as serialijse from 'serialijse';
-import createDictionary from '@cryptoscamdb/array-object-dictionary';
 import Scam from '../classes/scam.class';
 import * as Debug from 'debug';
 import Entry from '../models/entry';
@@ -12,218 +11,306 @@ import EntryWrapper from '../models/entrywrapper';
 import Coins from '../models/coins';
 import { priceLookup } from './lookup';
 import * as autoPR from './autoPR';
+import { getID } from './getID';
 import { pullRaw } from './github';
+import * as crypto from 'crypto';
 import coins, { ConfigCoin } from './endpoints';
 
 const debug = Debug('db');
+const db = new sqlite3.Database('cache.db');
 
-/* Declare Scam class for serialijse */
-serialijse.declarePersistable(Scam);
+export const init = async (): Promise<void> => {
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS entries (id TEXT, name TEXT, type TEXT, url TEXT, hostname TEXT, featured INTEGER, path TEXT, category TEXT, subcategory TEXT, description TEXT, reporter TEXT, coin TEXT, ip TEXT, severity INTEGER, statusCode INTEGER, status TEXT, updated INTEGER, PRIMARY KEY(id))'
+    );
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry TEXT, PRIMARY KEY(address,entry))'
+    );
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS nameservers (nameserver TEXT, entry TEXT, PRIMARY KEY(nameserver,entry))'
+    );
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS prices (ticker TEXT, price INTEGER, PRIMARY KEY(ticker))'
+    );
+    await this.run('CREATE TABLE IF NOT EXISTS reported (url TEXT, PRIMARY KEY(url))');
+    await this.run(
+        'CREATE TABLE IF NOT EXISTS checksums (filename TEXT, hash TEXT, PRIMARY KEY(filename))'
+    );
+    await pullRaw();
+    await readEntries();
+    await priceUpdate();
+};
 
-interface Database {
-    scams: Scam[];
-    verified: Entry[];
-    index: {
-        featured: Entry[];
-        blacklist: string[];
-        whitelist: string[];
-        whitelistAddresses: string[];
-        addresses: string[];
-        ips: string[];
-        inactives: Scam[];
-        actives: Scam[];
-        reporters: string[];
-    };
-    prices: {
-        cryptos: Coins[];
-    };
-    coininfo: ConfigCoin[];
-    reported: EntryWrapper[];
-}
+export const get = (query, data?) => {
+    return new Promise((resolve, reject) => {
+        debug('GET %s %o', query, data);
+        db.get(query, data, (error, row) => {
+            if (error) {
+                debug('ERROR %s %o', query, data);
+                reject(error);
+            } else {
+                resolve(row);
+            }
+        });
+    });
+};
 
-/* Define empty database structure */
-const db: Database = {
-    scams: [],
-    verified: [],
-    index: {
-        featured: [],
-        blacklist: [],
-        whitelist: [],
-        whitelistAddresses: [],
-        addresses: [],
-        ips: [],
-        inactives: [],
-        actives: [],
-        reporters: []
-    },
-    prices: {
-        cryptos: []
-    },
-    coininfo: [],
-    reported: []
+export const all = (query, data?) => {
+    return new Promise((resolve, reject) => {
+        debug('ALL %s %o', query, data);
+        db.all(query, data, (error, rows) => {
+            if (error) {
+                debug('ERROR %s %o', query, data);
+                reject(error);
+            } else {
+                resolve(rows);
+            }
+        });
+    });
+};
+
+export const run = (query, data?) => {
+    return new Promise((resolve, reject) => {
+        debug('RUN %s %o', query, data);
+        db.run(query, data, function(error) {
+            if (error) {
+                debug('ERROR %s %o', query, data);
+                reject(error);
+            } else {
+                resolve(this.changes);
+            }
+        });
+    });
 };
 
 /* Read entries from yaml files and load them into DB object */
 export const readEntries = async (): Promise<void> => {
     debug('Reading entries...');
-    const scamsFile = await fs.readFile(
-        path.join(__dirname, '../../data/blacklist_urls.yaml'),
-        'utf8'
+    /* Add blacklist_urls to cache.cb */
+    const scamsFile = await fs.readFile('./data/blacklist_urls.yaml', 'utf8');
+    const scamsChecksum = crypto
+        .createHash('sha256')
+        .update(scamsFile)
+        .digest('hex');
+    const oldScamsChecksum: any = await get(
+        "SELECT hash from checksums WHERE filename='blacklist_urls.yaml'"
     );
-    const verifiedFile = await fs.readFile(
-        path.join(__dirname, '../../data/whitelist_urls.yaml'),
-        'utf8'
-    );
-    const etherscamdbFile = await fs.readFile(
-        path.join(__dirname, '../../data/etherscamdb_blacklist.yaml'),
-        'utf8'
-    );
-    const cacheExists = await fs.pathExists('./cache.db');
-    if (!cacheExists) {
-        yaml.safeLoad(scamsFile)
-            .filter(entry => entry.url)
-            .map(entry => new Scam(entry))
-            .forEach(entry => db.scams.push(entry));
-        yaml.safeLoad(verifiedFile).forEach(entry => db.verified.push(entry));
-    } else {
-        const cacheFile = await fs.readFile('./cache.db', 'utf8');
-        Object.assign(db, serialijse.deserialize(cacheFile));
-        yaml.safeLoad(scamsFile)
-            .filter(entry => !db.scams.find(scam => scam.url === entry.url))
-            .map(entry => new Scam(entry))
-            .forEach(entry => db.scams.push(entry));
-        yaml.safeLoad(etherscamdbFile)
-            .filter(entry => !db.scams.find(scam => scam.url === entry.url))
-            .map(entry => new Scam(entry))
-            .forEach(entry => db.scams.push(entry));
-        yaml.safeLoad(verifiedFile)
-            .filter(entry => !db.verified.find(verified => verified.url === entry.url))
-            .forEach(entry => db.verified.push(entry));
-        yaml.safeLoad(scamsFile).forEach(entry => {
-            const index = db.scams.indexOf(db.scams.find(scam => scam.url === entry.url));
-            db.scams[index].category = entry.category;
-            db.scams[index].subcategory = entry.subcategory;
-            db.scams[index].description = entry.description;
-            db.scams[index].reporter = entry.reporter;
-            db.scams[index].coin = entry.coin;
-        });
-        yaml.safeLoad(verifiedFile).forEach(entry => {
-            const index = db.verified.indexOf(
-                db.verified.find(verified => verified.url === entry.url)
-            );
-            db.verified[index].url = entry.url;
-            db.verified[index].description = entry.description;
-            if (entry.addresses) {
-                db.verified[index].addresses = entry.addresses;
+    if (
+        !oldScamsChecksum ||
+        !('hash' in oldScamsChecksum) ||
+        oldScamsChecksum.hash !== scamsChecksum
+    ) {
+        const scams = yaml.safeLoad(scamsFile).map(entry => new Scam(entry));
+        await run('BEGIN TRANSACTION');
+        await Promise.all(
+            scams.map(async entry => {
+                await run(
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
+                    {
+                        $id: entry.getID(),
+                        $name: entry.getHostname(),
+                        $url: entry.url,
+                        $hostname: entry.getHostname(),
+                        $path: entry.path,
+                        $category: entry.category,
+                        $subcategory: entry.subcategory,
+                        $description: entry.description,
+                        $reporter: entry.reporter,
+                        $coin: entry.coin,
+                        $severity: entry.severity
+                    }
+                );
+                const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
+                    entry.getID()
+                ]);
+                await Promise.all(
+                    addresses.map(async address => {
+                        if (!(address.address in (entry.addresses || []))) {
+                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
+                                address.address,
+                                entry.getID()
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(async address => {
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                            address,
+                            entry.getID()
+                        ]);
+                    })
+                );
+            })
+        );
+        await run(
+            'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
+            {
+                $filename: 'blacklist_urls.yaml',
+                $hash: scamsChecksum
             }
-        });
+        );
+        await run('COMMIT');
     }
-};
-
-/* Create indexes for DB object */
-export const updateIndex = async (): Promise<void> => {
-    //debug("Updating index...");
-    const scamDictionary = createDictionary(db.scams);
-    const verifiedDictionary = createDictionary(db.verified);
-
-    db.index.featured = db.verified
-        .filter(entry => entry.featured)
-        .sort((a, b) => a.name.localeCompare(b.name));
-    db.index.blacklist = [
-        ...db.scams
-            .filter(entry => entry.path === '/*')
-            .map(entry => entry.getHostname().replace('www.', '')),
-        ...db.scams
-            .filter(entry => entry.path === '/*')
-            .map(entry => entry.getHostname().replace('www.', '')),
-        ...Object.keys(scamDictionary.ip || {}).filter(ip => scamDictionary.ip[ip].path === '/*')
-    ];
-    db.index.whitelist = [
-        ...db.verified.map(entry => url.parse(entry.url).hostname.replace('www.', '')),
-        ...db.verified.map(entry => 'www.' + url.parse(entry.url).hostname.replace('www.', ''))
-    ];
-    db.index.whitelistAddresses = verifiedDictionary.addresses || [];
-    db.index.addresses = scamDictionary.addresses || [];
-    db.index.ips = scamDictionary.ip || [];
-    db.index.inactives = db.scams.filter(scam => scam.status !== 'Active');
-    db.index.actives = db.scams.filter(scam => scam.status === 'Active');
-    db.index.reporters = scamDictionary.reporter;
-};
-
-/* Write DB on exit */
-export const exitHandler = (): void => {
-    fs.writeFileSync('./cache.db', serialijse.serialize(db));
-};
-
-export const init = async (): Promise<void> => {
-    await pullRaw();
-    await readEntries();
-    await module.exports.priceUpdate();
-    await updateIndex();
-    await module.exports.persist();
-    if (config.interval.priceLookup > 0) {
-        setInterval(module.exports.priceUpdate, config.interval.priceLookup);
+    /* Add whitelist_urls to cache.cb */
+    const verifiedFile = await fs.readFile('./data/whitelist_urls.yaml', 'utf8');
+    const verifiedChecksum = crypto
+        .createHash('sha256')
+        .update(verifiedFile)
+        .digest('hex');
+    const oldVerifiedChecksum: any = await get(
+        "SELECT hash from checksums WHERE filename='whitelist_urls.yaml'"
+    );
+    if (
+        !oldVerifiedChecksum ||
+        !('hash' in oldVerifiedChecksum) ||
+        oldVerifiedChecksum.hash !== verifiedChecksum
+    ) {
+        const verified = yaml.safeLoad(verifiedFile);
+        await run('BEGIN TRANSACTION');
+        await Promise.all(
+            verified.map(async entry => {
+                await run(
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,description) VALUES ($id,$name,'verified',$url,$hostname,$featured,$description) ON CONFLICT(id) DO UPDATE SET name=$name,description=$description,featured=$featured WHERE id=$id",
+                    {
+                        $id: getID(entry.name),
+                        $name: entry.name,
+                        $url: entry.url,
+                        $hostname: url.parse(entry.url).hostname,
+                        $featured: entry.featured,
+                        $description: entry.description
+                    }
+                );
+                const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
+                    getID(entry.name)
+                ]);
+                await Promise.all(
+                    addresses.map(async address => {
+                        if (!(address.address in (entry.addresses || []))) {
+                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
+                                address.address,
+                                getID(entry.name)
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(async address => {
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                            address,
+                            getID(entry.name)
+                        ]);
+                    })
+                );
+            })
+        );
+        await run(
+            'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
+            {
+                $filename: 'whitelist_urls.yaml',
+                $hash: verifiedChecksum
+            }
+        );
+        await run('COMMIT');
     }
-    if (config.interval.databasePersist > 0) {
-        setInterval(module.exports.persist, config.interval.databasePersist);
+
+    /* Add etherscamdb_blacklist to cache.db */
+    const etherscamdbFile = await fs.readFile('./data/etherscamdb_blacklist.yaml', 'utf8');
+    const etherscamdbChecksum = crypto
+        .createHash('sha256')
+        .update(etherscamdbFile)
+        .digest('hex');
+    const oldESDBScamsChecksum: any = await get(
+        "SELECT hash from checksums WHERE filename='etherscamdb_blacklist.yaml'"
+    );
+    if (
+        !oldESDBScamsChecksum ||
+        !('hash' in oldESDBScamsChecksum) ||
+        oldESDBScamsChecksum.hash !== etherscamdbChecksum
+    ) {
+        debug('Adding ESDB scams now...');
+        const etherscamdbscams = yaml.safeLoad(etherscamdbFile).map(entry => new Scam(entry));
+        await run('BEGIN TRANSACTION');
+        await Promise.all(
+            etherscamdbscams.map(async entry => {
+                await run(
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
+                    {
+                        $id: entry.getID(),
+                        $name: entry.getHostname(),
+                        $url: entry.url,
+                        $hostname: entry.getHostname(),
+                        $path: entry.path,
+                        $category: entry.category,
+                        $subcategory: entry.subcategory,
+                        $description: entry.description,
+                        $reporter: entry.reporter,
+                        $coin: entry.coin,
+                        $severity: entry.severity
+                    }
+                );
+                const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
+                    entry.getID()
+                ]);
+                await Promise.all(
+                    addresses.map(async address => {
+                        if (!(address.address in (entry.addresses || []))) {
+                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
+                                address.address,
+                                entry.getID()
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    (entry.addresses || []).map(async address => {
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                            address,
+                            entry.getID()
+                        ]);
+                    })
+                );
+            })
+        );
+        await run(
+            'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
+            {
+                $filename: 'etherscamdb_blacklist.yaml',
+                $hash: etherscamdbChecksum
+            }
+        );
+        await run('COMMIT');
     }
-    process.stdin.resume();
-    process.once('beforeExit', exitHandler);
-    process.once('SIGINT', exitHandler);
-    process.once('SIGTERM', exitHandler);
-};
-
-export const read = (): Database => db;
-
-export const write = (scamUrl, data): void => {
-    const scam = db.scams.find(dbScam => dbScam.url === scamUrl);
-    Object.keys(data).forEach(key => (scam[key] = data[key]));
-    updateIndex(); // TODO: Handle promise
-};
-
-export const persist = async (): Promise<void> => {
-    debug('Persisting cache...');
-    await fs.writeFile('./cache.db', serialijse.serialize(db));
 };
 
 export const priceUpdate = async (): Promise<void> => {
     debug('Updating price...');
-    db.coininfo = coins;
-    coins.forEach(async each => {
-        db.prices.cryptos = [];
-        const ret = await priceLookup(each.priceSource, each.priceEndpoint);
-        const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
-        debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
-        db.prices.cryptos.push({
-            ticker: each.ticker,
-            price: priceUSD
-        });
-    });
+    await Promise.all(
+        coins.map(async each => {
+            const ret = await priceLookup(each.priceSource, each.priceEndpoint);
+            const priceUSD = await JSON.parse(JSON.stringify(ret)).USD;
+            debug(each.ticker + ' price in usd: ' + JSON.stringify(priceUSD));
+            await run('INSERT OR REPLACE INTO prices VALUES (?,?)', [each.ticker, priceUSD]);
+        })
+    );
 };
 
 export const createPR = async (): Promise<void> => {
-    if (db.reported.length < 1 || db.reported === undefined) {
-        // Do nothing; empty reported cache
-    } else {
-        debug(db.reported.length + ' entries found in report cache.');
-        db.reported.forEach(async entry => {
+    const reported: any = await all('SELECT * FROM reported');
+    if (reported.length > 0) {
+        debug(reported.length + ' entries found in report cache.');
+        reported.forEach(async entry => {
             try {
                 debug('Trying to remove entry from report cache');
                 const successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
                 if (successStatus.success) {
                     if (successStatus.url) {
                         // Success
-                        db.reported = db.reported.filter(el => {
-                            return el !== entry;
-                        });
-                        exitHandler();
+                        run('DELETE from reported WHERE url=?', [entry.url]);
                         debug('Url entry removed from report cache.');
                     } else {
                         // Success
-                        db.reported = db.reported.filter(el => {
-                            return el !== entry;
-                        });
-                        exitHandler();
+                        run('DELETE from reported WHERE url=?', [entry.url]);
                         debug('Entry removed from report cache.');
                     }
                 } else {
@@ -241,7 +328,7 @@ export const createPR = async (): Promise<void> => {
 export const addReport = async (entry: EntryWrapper) => {
     // Adding new entry to the reported section.
     try {
-        db.reported.push(entry);
+        await run('INSERT OR IGNORE INTO reported VALUES (?)', [entry]);
     } catch (e) {
         return { success: false, error: e };
     }
@@ -254,13 +341,9 @@ export const addReport = async (entry: EntryWrapper) => {
 };
 
 export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
-    if (db.reported.find(el => el !== entry)) {
-        debug(
-            'Input entry ' +
-                JSON.stringify(entry, null, 2) +
-                ' matches ' +
-                JSON.stringify(db.reported[db.reported.findIndex(el => el === entry)], null, 2)
-        );
+    const reported = await get('SELECT * FROM reported WHERE url=?', [entry]);
+    if (reported) {
+        debug('Input entry ' + JSON.stringify(entry, null, 2) + ' matches ');
         return true;
     } else {
         debug('Input entry not found in reported');
@@ -270,17 +353,12 @@ export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
 
 export const checkDuplicate = async (entry: Entry): Promise<any> => {
     if (entry.addresses) {
-        entry.addresses.forEach(address => {
-            if (
-                Object.keys(db.index.addresses).find(blacklistedaddr => blacklistedaddr === address)
-            ) {
+        entry.addresses.forEach(async address => {
+            const dbEntry: any = await get('SELECT * FROM addresses WHERE address=?', [address]);
+            if (dbEntry && dbEntry.type === 'scam') {
                 return { duplicate: true, type: 'Blacklisted address already exists.' };
             }
-            if (
-                Object.keys(db.index.whitelistAddresses).find(
-                    whitelistAddr => whitelistAddr === address
-                )
-            ) {
+            if (dbEntry && dbEntry.type === 'verified') {
                 return { duplicate: true, type: 'Whitelisted address already exists.' };
             }
         });
@@ -288,63 +366,25 @@ export const checkDuplicate = async (entry: Entry): Promise<any> => {
 
     if (entry.url || entry.name) {
         if (entry.url) {
-            if (db.scams.find(scam => scam.url === entry.url)) {
+            const dbEntry: any = await get('SELECT * FROM entries WHERE url=?', [entry.url]);
+            if (dbEntry && dbEntry.type === 'scam') {
                 return { duplicate: true, type: 'Blacklisted url already exists.' };
             }
-            if (db.verified.find(verified => verified.url === entry.url)) {
+            if (dbEntry && dbEntry.type === 'verified') {
                 return { duplicate: true, type: 'Whitelisted url already exists.' };
             }
         }
 
         if (entry.name) {
-            if (db.scams.find(scam => scam.name === entry.name)) {
+            const dbEntry: any = await get('SELECT * FROM entries WHERE name=?', [entry.name]);
+            if (dbEntry && dbEntry.type === 'scam') {
                 return { duplicate: true, type: 'Blacklisted name already exists.' };
             }
-            if (db.verified.find(verified => verified.name === entry.name)) {
+            if (dbEntry && dbEntry.type === 'verified') {
                 return { duplicate: true, type: 'Whitelisted name already exists.' };
             }
         }
         return { duplicate: false, type: 'Valid entry.' };
     }
     return { duplicate: false, type: 'Valid entry.' };
-};
-
-export const getCategoryStats = async (): Promise<any> => {
-    return new Promise((resolve, reject) => {
-        const category = [];
-        db.scams.forEach(entry => {
-            if (entry.category) {
-                const blank = category.findIndex(en => en.category === entry.category);
-                if (blank >= 0) {
-                    category[blank].count += 1;
-                } else {
-                    category.push({
-                        category: entry.category,
-                        count: 1
-                    });
-                }
-            }
-        });
-        resolve(category);
-    });
-};
-
-export const getSubCategoryStats = async (): Promise<any> => {
-    return new Promise((resolve, reject) => {
-        const subcategory = [];
-        db.scams.forEach(entry => {
-            if (entry.subcategory) {
-                const blank = subcategory.findIndex(en => en.subcategory === entry.subcategory);
-                if (blank >= 0) {
-                    subcategory[blank].count += 1;
-                } else {
-                    subcategory.push({
-                        subcategory: entry.subcategory,
-                        count: 1
-                    });
-                }
-            }
-        });
-        resolve(subcategory);
-    });
 };

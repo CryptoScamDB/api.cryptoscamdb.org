@@ -19,8 +19,42 @@ export const update = async (): Promise<void> => {
     /* Create and write to cache.db */
     debug('Spawning update process...');
     const updateProcess = fork(path.join(__dirname, 'scripts/update.ts'));
-    debug('Writing to cache.db');
-    updateProcess.on('message', data => db.write(data.url, data));
+    updateProcess.on('message', async data => {
+        await db.run('BEGIN TRANSACTION');
+        await Promise.all(
+            data.map(async scam => {
+                await db.run('UPDATE entries SET ip=?,status=?,statusCode=?,updated=? WHERE id=?', [
+                    scam.ip,
+                    scam.status,
+                    scam.statusCode,
+                    scam.updated,
+                    scam.id
+                ]);
+                const nameservers: any = await db.all('SELECT * FROM nameservers WHERE entry=?', [
+                    scam.id
+                ]);
+                await Promise.all(
+                    nameservers.map(async nameserver => {
+                        if (!(nameserver.nameserver in scam.nameservers)) {
+                            await db.run('DELETE FROM nameservers WHERE nameserver=? AND entry=?', [
+                                nameserver.nameserver,
+                                nameserver.entry
+                            ]);
+                        }
+                    })
+                );
+                await Promise.all(
+                    scam.nameservers.map(async nameserver => {
+                        await db.run('INSERT OR IGNORE INTO nameservers VALUES (?,?)', [
+                            nameserver,
+                            scam.id
+                        ]);
+                    })
+                );
+            })
+        );
+        await db.run('COMMIT');
+    });
 
     /* After db is initially written, write the cache.db every cacheRenewCheck-defined period */
     updateProcess.on('exit', () => {
@@ -88,6 +122,10 @@ export const serve = async (electronApp?: any): Promise<void> => {
     /* If auto pulling from Github is enabled; schedule timer */
     if (config.autoPull.enabled) {
         setInterval(github.pullData, config.autoPull.interval);
+    }
+
+    if (config.interval.priceLookup > 0) {
+        setInterval(db.priceUpdate, config.interval.priceLookup);
     }
 };
 

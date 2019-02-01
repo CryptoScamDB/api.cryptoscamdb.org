@@ -1,6 +1,7 @@
 import * as db from './db';
 import * as Debug from 'debug';
 import Entry from '../models/entry';
+import { STATUS_CODES } from 'http';
 
 const debug = Debug('router-utils');
 
@@ -15,28 +16,42 @@ interface JsonRet {
     validRoot?: boolean;
 }
 
-export default (params: string, coin: string): JsonRet => {
+export default async (params: string, coin: string): Promise<JsonRet> => {
     debug('Starting to check DB for address - ' + params + ' - ' + coin);
-    const whitelistAddress = Object.keys(db.read().index.whitelistAddresses).find(
-        address => params.toLowerCase() === address.toLowerCase()
-    );
-    const blacklistAddress = Object.keys(db.read().index.addresses).find(
-        address => params.toLowerCase() === address.toLowerCase()
-    );
-    if (whitelistAddress) {
-        return {
-            status: 'whitelisted',
-            type: 'address',
-            coin,
-            entries: db.read().index.whitelistAddresses[whitelistAddress]
-        };
-    } else if (blacklistAddress) {
-        return {
-            status: 'blocked',
-            type: 'address',
-            coin,
-            entries: db.read().index.addresses[blacklistAddress]
-        };
+    const address: any = await db.all('SELECT * FROM addresses WHERE address=?', params);
+    if (address) {
+        const status: any = await db.get('SELECT * FROM entries WHERE id=?', address[0].entry);
+        const outputEntries = [];
+        await Promise.all(
+            await address.map(async entry => {
+                const data = await db.get('SELECT * FROM entries WHERE id=?', entry.entry);
+                if (data) {
+                    outputEntries.push(data);
+                }
+            })
+        );
+        if (address && status.type === 'verified') {
+            return {
+                status: 'whitelisted',
+                type: 'address',
+                coin,
+                entries: outputEntries
+            };
+        } else if (address && status.type === 'scam') {
+            return {
+                status: 'blocked',
+                type: 'address',
+                coin,
+                entries: outputEntries
+            };
+        } else {
+            return {
+                status: 'neutral',
+                type: 'address',
+                coin,
+                entries: outputEntries
+            };
+        }
     } else {
         return {
             status: 'neutral',
