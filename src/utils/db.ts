@@ -32,7 +32,7 @@ export const init = async (): Promise<void> => {
     await this.run(
         'CREATE TABLE IF NOT EXISTS prices (ticker TEXT, price INTEGER, PRIMARY KEY(ticker))'
     );
-    await this.run('CREATE TABLE IF NOT EXISTS reported (url TEXT, PRIMARY KEY(url))');
+    await this.run('CREATE TABLE IF NOT EXISTS reported (data TEXT, PRIMARY KEY (data))');
     await this.run(
         'CREATE TABLE IF NOT EXISTS checksums (filename TEXT, hash TEXT, PRIMARY KEY(filename))'
     );
@@ -299,38 +299,31 @@ export const createPR = async (): Promise<void> => {
     const reported: any = await all('SELECT * FROM reported');
     if (reported.length > 0) {
         debug(reported.length + ' entries found in report cache.');
-        reported.forEach(async entry => {
+        const reports = [];
+        reported.map(en => {
+            reports.push(en);
+        });
+        reports.forEach(async entry => {
             try {
                 debug('Trying to remove entry from report cache');
-                const successStatus = await autoPR.autoPR(entry, config.apiKeys.Github_AccessKey);
+                const successStatus = await autoPR.autoPR(
+                    JSON.parse(entry.data),
+                    config.apiKeys.Github_AccessKey
+                ); //{"success":true};
                 if (successStatus.success) {
-                    if (successStatus.url) {
-                        // Success
-                        run('DELETE from reported WHERE url=?', [entry.url]);
-                        debug('Url entry removed from report cache.');
-                        debug(
-                            'Report Cache: ' +
-                                JSON.stringify(db.reported, null, 4) +
-                                ' - ' +
-                                db.reported.length
-                        );
-                    } else {
-                        // Success
-                        run('DELETE from reported WHERE url=?', [entry.url]);
-                        debug('Entry removed from report cache.');
-                        debug(
-                            'Report Cache: ' +
-                                JSON.stringify(db.reported, null, 4) +
-                                ' - ' +
-                                db.reported.length
-                        );
-                    }
+                    // Success
+                    run('DELETE FROM reported WHERE data=?', [entry.data]);
+                    debug('Url entry removed from report cache.');
+                    debug(
+                        'Report Cache: ' + JSON.stringify(reports, null, 4) + ' - ' + reports.length
+                    );
                 } else {
                     // Failure
                     debug('Entry could not be removed from report cache.');
                 }
             } catch (e) {
                 // Failure
+                debug('error: ' + e);
                 debug('Github server err in removing entry from report cache: ' + e);
             }
         });
@@ -339,8 +332,9 @@ export const createPR = async (): Promise<void> => {
 
 export const addReport = async (entry: EntryWrapper) => {
     // Adding new entry to the reported section.
+    debug('started adding report?');
     try {
-        await run('INSERT OR IGNORE INTO reported VALUES (?)', [entry]);
+        await run('INSERT OR IGNORE INTO reported VALUES (?)', [JSON.stringify(entry)]);
     } catch (e) {
         return { success: false, error: e };
     }
@@ -352,15 +346,20 @@ export const addReport = async (entry: EntryWrapper) => {
     }
 };
 
-export const checkReport = async (entry: EntryWrapper): Promise<boolean> => {
-    const reported = await get('SELECT * FROM reported WHERE url=?', [entry]);
-    if (reported) {
-        debug('Input entry ' + JSON.stringify(entry, null, 2) + ' matches ');
-        return true;
-    } else {
-        debug('Input entry not found in reported');
-        return false;
-    }
+export const checkReport = (entry: EntryWrapper): Promise<boolean> => {
+    return new Promise(async (resolve, reject) => {
+        const reported: any = await all('SELECT * FROM reported');
+        debug('Reported list: ' + JSON.stringify(reported, null, 4));
+        reported.map(en => {
+            if (JSON.parse(en.data).data.url.toLowerCase() === entry.data.url.toLowerCase()) {
+                resolve(true);
+            } else {
+                debug('Input entry not found in reported');
+                resolve(false);
+            }
+        });
+        resolve(false);
+    });
 };
 
 export const checkDuplicate = async (entry: Entry): Promise<any> => {

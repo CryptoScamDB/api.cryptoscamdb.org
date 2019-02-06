@@ -7,7 +7,7 @@ export const resolve = async (ensname: string): Promise<any> => {
         Web3.providers.HttpProvider.prototype.sendAsync =
             Web3.providers.HttpProvider.prototype.send;
         try {
-            const provider = await new Web3('https://api.dev.blockscale.net/dev/parity');
+            const provider = await new Web3('https://api.mycryptoapi.com/eth');
             const ens = await new ENS(provider);
             const addressResolver = ens.resolver(ensname);
             const address = await addressResolver.addr();

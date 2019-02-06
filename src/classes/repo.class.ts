@@ -21,7 +21,7 @@ export default class Repo {
 
     createNew(path, message, content) {
         return new Promise((resolve, reject) => {
-            this.repo.createContents(path, message, content, (err, result) => {
+            this.repo.createContents(path, message, content, 'master', (err, result) => {
                 if (err) {
                     reject(err);
                 } else {
