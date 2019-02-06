@@ -8,5 +8,5 @@ describe('ens', () => {
         expect(result).to.equal('0x4d1f9d958afa2e96dab3f3ce7162b87daea39017');
     })
         .slow(2000)
-        .timeout(10000);
+        .timeout(25000);
 });
