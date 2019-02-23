@@ -56,10 +56,9 @@ export const all = (query, data?) => {
     return allPromise(query, data);
 };
 
-export const run = async (query, data?) => {
+export const run = (query, data?) => {
     debug('RUN %s %o', query, data);
-    const result = await runPromise(query, data);
-    return result.changes;
+    return runPromise(query, data);
 };
 
 /* Read entries from yaml files and load them into DB object */
