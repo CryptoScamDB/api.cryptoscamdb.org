@@ -233,9 +233,8 @@ export const accountLookup = async (address, url, endpoint) => {
             body
         };
     } catch (err) {
-        throw {
-            success: false,
-            err
+        return {
+            success: false
         };
     }
 };
