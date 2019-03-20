@@ -65,7 +65,7 @@
     "fs-extra": "7.0.1",
     "github-api": "3.0.0",
     "helmet": "3.15.0",
-    "js-yaml": "3.12.1",
+    "js-yaml": "3.13.0",
     "octonode": "0.9.5",
     "private-ip": "1.0.5",
     "request": "2.88.0",
