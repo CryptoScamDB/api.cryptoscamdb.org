@@ -8,7 +8,6 @@ export default interface Entry {
     description?: string;
     addresses?: string[];
     reporter?: string;
-    coin?: string;
     severity?: number;
     featured?: boolean;
     domain?: string;

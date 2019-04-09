@@ -17,7 +17,6 @@ export default class Scam implements Entry {
     description?: string;
     addresses?: string[];
     reporter?: string;
-    coin?: string;
     ip?: string;
     abusereport?: string;
     nameservers: string[];
@@ -43,7 +42,6 @@ export default class Scam implements Entry {
             if (this.path || this.url) {
                 this.path = scamData.path || '/*';
             }
-            this.coin = scamData.coin;
         }
     }
 
