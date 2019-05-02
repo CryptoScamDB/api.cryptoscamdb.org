@@ -21,10 +21,10 @@ const db = new sqlite3.Database('cache.db');
 
 export const init = async (): Promise<void> => {
     await this.run(
-        'CREATE TABLE IF NOT EXISTS entries (id TEXT, name TEXT, type TEXT, url TEXT, hostname TEXT, featured INTEGER, path TEXT, category TEXT, subcategory TEXT, description TEXT, reporter TEXT, coin TEXT, ip TEXT, severity INTEGER, statusCode INTEGER, status TEXT, updated INTEGER, PRIMARY KEY(id))'
+        'CREATE TABLE IF NOT EXISTS entries (id TEXT, name TEXT, type TEXT, url TEXT, hostname TEXT, featured INTEGER, path TEXT, category TEXT, subcategory TEXT, description TEXT, reporter TEXT, ip TEXT, severity INTEGER, statusCode INTEGER, status TEXT, updated INTEGER, PRIMARY KEY(id))'
     );
     await this.run(
-        'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry TEXT, PRIMARY KEY(address,entry))'
+        'CREATE TABLE IF NOT EXISTS addresses (address TEXT, entry TEXT, coin TEXT, PRIMARY KEY(address,entry))'
     );
     await this.run(
         'CREATE TABLE IF NOT EXISTS nameservers (nameserver TEXT, entry TEXT, PRIMARY KEY(nameserver,entry))'
@@ -105,7 +105,7 @@ export const readEntries = async (): Promise<void> => {
         await Promise.all(
             scams.map(async entry => {
                 await run(
-                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,severity=$severity WHERE id=$id",
                     {
                         $id: entry.getID(),
                         $name: entry.getHostname(),
@@ -116,7 +116,6 @@ export const readEntries = async (): Promise<void> => {
                         $subcategory: entry.subcategory,
                         $description: entry.description,
                         $reporter: entry.reporter,
-                        $coin: entry.coin,
                         $severity: entry.severity
                     }
                 );
@@ -135,8 +134,9 @@ export const readEntries = async (): Promise<void> => {
                 );
                 await Promise.all(
                     (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
                             address,
+                            entry.coin,
                             entry.getID()
                         ]);
                     })
@@ -196,8 +196,9 @@ export const readEntries = async (): Promise<void> => {
                 );
                 await Promise.all(
                     (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
                             address,
+                            entry.coin,
                             getID(entry.name)
                         ]);
                     })
@@ -234,7 +235,7 @@ export const readEntries = async (): Promise<void> => {
         await Promise.all(
             etherscamdbscams.map(async entry => {
                 await run(
-                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,coin,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$coin,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,coin=$coin,severity=$severity WHERE id=$id",
+                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,severity=$severity WHERE id=$id",
                     {
                         $id: entry.getID(),
                         $name: entry.getHostname(),
@@ -245,7 +246,6 @@ export const readEntries = async (): Promise<void> => {
                         $subcategory: entry.subcategory,
                         $description: entry.description,
                         $reporter: entry.reporter,
-                        $coin: entry.coin,
                         $severity: entry.severity
                     }
                 );
@@ -264,8 +264,9 @@ export const readEntries = async (): Promise<void> => {
                 );
                 await Promise.all(
                     (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?)', [
+                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
                             address,
+                            entry.coin,
                             entry.getID()
                         ]);
                     })
