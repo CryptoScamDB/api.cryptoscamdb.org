@@ -132,15 +132,16 @@ export const readEntries = async (): Promise<void> => {
                         }
                     })
                 );
-                await Promise.all(
-                    (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
-                            address,
-                            entry.coin,
-                            entry.getID()
-                        ]);
-                    })
-                );
+                if (typeof entry.addresses !== 'undefined' && entry.addresses.length) {
+                    await Promise.all(
+                        (entry.addresses || []).map(async address => {
+                            await run(
+                                'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+                                [address, entry.coin, entry.getID()]
+                            );
+                        })
+                    );
+                }
             })
         );
         await run(
@@ -196,11 +197,10 @@ export const readEntries = async (): Promise<void> => {
                 );
                 await Promise.all(
                     (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
-                            address,
-                            entry.coin,
-                            getID(entry.name)
-                        ]);
+                        await run(
+                            'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+                            [address, entry.coin, getID(entry.name)]
+                        );
                     })
                 );
             })
@@ -264,11 +264,10 @@ export const readEntries = async (): Promise<void> => {
                 );
                 await Promise.all(
                     (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
-                            address,
-                            entry.coin,
-                            entry.getID()
-                        ]);
+                        await run(
+                            'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+                            [address, entry.coin, entry.getID()]
+                        );
                     })
                 );
             })
