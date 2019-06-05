@@ -59,7 +59,7 @@ if (!process.send) {
                     await scam.getNameservers();
                 } /* Update nameservers */
 
-                if (scam.ip || scam.nameservers || scam.status || scam.statusCode) {
+                if (scam.ip || scam.nameservers.length > 0 || scam.status || scam.statusCode) {
                     /* Push updated data to queue */
                     updated.push({
                         id: scam.id,

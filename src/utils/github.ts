@@ -8,7 +8,7 @@ import { Request, Response } from 'express';
 const debug = Debug('github');
 
 /* Pull yaml files from Github repos to data/whitelist_urls.yaml and data/blacklist_urls.yaml */
-const pullDataFiles = async (): Promise<void> => {
+export const pullRaw = async (): Promise<void> => {
     debug('Pulling data files...');
     await download(
         'https://raw.githubusercontent.com/CryptoScamDB/whitelist/master/data/urls.yaml',
@@ -47,7 +47,7 @@ export const webhook = async (req: Request, res: Response, body: string): Promis
         );
         if (crypto.timingSafeEqual(githubSig, localSig)) {
             debug('Valid incoming Github webhook!');
-            await pullDataFiles();
+            await pullRaw();
             await db.readEntries();
             res.status(200).end();
         } else {
@@ -57,9 +57,7 @@ export const webhook = async (req: Request, res: Response, body: string): Promis
     }
 };
 
-export const pullRaw = pullDataFiles;
-
 export const pullData = async (): Promise<void> => {
-    await pullDataFiles();
+    await pullRaw();
     await db.readEntries();
 };

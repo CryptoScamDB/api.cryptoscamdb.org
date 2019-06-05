@@ -1,4 +1,4 @@
-import * as request from 'request';
+import * as request from 'request-promise-native';
 import config from './config';
 import * as Debug from 'debug';
 import Bottleneck from 'bottleneck';
@@ -118,166 +118,123 @@ const limiter = new Bottleneck({
 });
 
 /* Do a URL lookup */
-export const lookup = limiter.wrap(url => {
-    return new Promise<request.Response | undefined>(resolve => {
-        //debug('Requesting ' + url + '...');
-        request(
-            {
-                url,
-                timeout: config.lookups.HTTP.timeoutAfter,
-                followAllRedirects: true,
-                maxRedirects: 5
-            },
-            (err, response) => {
-                if (err) {
-                    resolve(undefined);
-                } else {
-                    resolve(response);
-                }
-            }
-        );
-    });
+export const lookup = limiter.wrap(async url => {
+    try {
+        const response = await request({
+            url,
+            timeout: config.lookups.HTTP.timeoutAfter,
+            followAllRedirects: true,
+            maxRedirects: 5,
+            resolveWithFullResponse: true
+        });
+        return response;
+    } catch (e) {
+        return undefined;
+    }
 });
 
 /* Retrieve latest Urlscan report (no API key required) */
-export const getURLScan = (url: string): Promise<URLScanResponse> => {
-    return new Promise<URLScanResponse>((resolve, reject) => {
-        request(
-            'https://urlscan.io/api/v1/search/?q=domain%3A' + url,
-            { json: true },
-            (err, response, body) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(body);
-                }
-            }
-        );
+export const getURLScan = async (url: string): Promise<URLScanResponse> => {
+    return request({
+        url: 'https://urlscan.io/api/v1/search/?q=domain%3A' + url,
+        json: true
     });
 };
 
 /* Retrieve Google SafeBrowsing status for URL */
-export const getGoogleSafeBrowsing = (url): Promise<SafeBrowsingResponse | boolean> => {
-    return new Promise<SafeBrowsingResponse | boolean>((resolve, reject) => {
-        debug('Google SafeBrowsing: %o', url);
-        request(
-            {
-                url:
-                    'https://safebrowsing.googleapis.com/v4/threatMatches:find?key=' +
-                    encodeURIComponent(config.apiKeys.Google_SafeBrowsing),
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                json: {
-                    client: {
-                        clientId: 'CryptoScamDB',
-                        clientVersion: '1.0.0'
-                    },
-                    threatInfo: {
-                        threatTypes: [
-                            'THREAT_TYPE_UNSPECIFIED',
-                            'MALWARE',
-                            'SOCIAL_ENGINEERING',
-                            'UNWANTED_SOFTWARE',
-                            'POTENTIALLY_HARMFUL_APPLICATION'
-                        ],
-                        platformTypes: [
-                            'PLATFORM_TYPE_UNSPECIFIED',
-                            'WINDOWS',
-                            'LINUX',
-                            'ANDROID',
-                            'OSX',
-                            'IOS',
-                            'ANY_PLATFORM',
-                            'ALL_PLATFORMS',
-                            'CHROME'
-                        ],
-                        threatEntryTypes: ['THREAT_ENTRY_TYPE_UNSPECIFIED', 'URL', 'EXECUTABLE'],
-                        threatEntries: [
-                            {
-                                url
-                            }
-                        ]
-                    }
-                }
+export const getGoogleSafeBrowsing = async (url): Promise<SafeBrowsingResponse | boolean> => {
+    debug('Google SafeBrowsing: %o', url);
+    const response = await request({
+        url:
+            'https://safebrowsing.googleapis.com/v4/threatMatches:find?key=' +
+            encodeURIComponent(config.apiKeys.Google_SafeBrowsing),
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        json: {
+            client: {
+                clientId: 'CryptoScamDB',
+                clientVersion: '1.0.0'
             },
-            (err, response, body) => {
-                debug('%s returned %s %o', url, response ? response.statusCode : -1, body);
-                if (err) {
-                    reject(err);
-                } else if (response.statusCode !== 200) {
-                    reject('Google SafeBrowsing returned an invalid status code');
-                } else if (body && body.matches && body.matches[0]) {
-                    resolve(body.matches[0]);
-                } else {
-                    resolve(false);
-                }
+            threatInfo: {
+                threatTypes: [
+                    'THREAT_TYPE_UNSPECIFIED',
+                    'MALWARE',
+                    'SOCIAL_ENGINEERING',
+                    'UNWANTED_SOFTWARE',
+                    'POTENTIALLY_HARMFUL_APPLICATION'
+                ],
+                platformTypes: [
+                    'PLATFORM_TYPE_UNSPECIFIED',
+                    'WINDOWS',
+                    'LINUX',
+                    'ANDROID',
+                    'OSX',
+                    'IOS',
+                    'ANY_PLATFORM',
+                    'ALL_PLATFORMS',
+                    'CHROME'
+                ],
+                threatEntryTypes: ['THREAT_ENTRY_TYPE_UNSPECIFIED', 'URL', 'EXECUTABLE'],
+                threatEntries: [
+                    {
+                        url
+                    }
+                ]
             }
-        );
+        },
+        resolveWithFullResponse: true
     });
+    debug('%s returned %s %o', url, response ? response.statusCode : -1, response.body);
+    if (response.statusCode !== 200) {
+        throw new Error('Google SafeBrowsing returned an invalid status code');
+    } else if (response.body && response.body.matches && response.body.matches[0]) {
+        return response.body.matches[0];
+    } else {
+        return false;
+    }
 };
 
 /* Retrieve latest VirusTotal report */
-export const getVirusTotal = (url): Promise<VirusTotalResponse> => {
-    return new Promise<VirusTotalResponse>((resolve, reject) => {
-        request(
-            {
-                uri:
-                    'https://www.virustotal.com/vtapi/v2/url/report?apikey=' +
-                    encodeURIComponent(config.apiKeys.VirusTotal) +
-                    '&resource=' +
-                    url,
-                method: 'GET',
-                json: true
-            },
-            (err, response, body) => {
-                if (err) {
-                    reject(err);
-                } else if (response.statusCode !== 200) {
-                    reject('VirusTotal returned an invalid status code');
-                } else if (body.response_code === 0) {
-                    reject('VirusTotal returned an invalid internal status code');
-                } else {
-                    resolve(body);
-                }
-            }
-        );
+export const getVirusTotal = async (url): Promise<VirusTotalResponse> => {
+    const response = await request({
+        uri:
+            'https://www.virustotal.com/vtapi/v2/url/report?apikey=' +
+            encodeURIComponent(config.apiKeys.VirusTotal) +
+            '&resource=' +
+            url,
+        method: 'GET',
+        json: true,
+        resolveWithFullResponse: true
     });
+    if (response.statusCode !== 200) {
+        throw new Error('VirusTotal returned an invalid status code');
+    } else if (response.body.response_code === 0) {
+        throw new Error('VirusTotal returned an invalid internal status code');
+    } else {
+        return response.body;
+    }
 };
 
 /* Get price per crypto */
-export const priceLookup = (url, endpoint) => {
-    return new Promise((resolve, reject) => {
-        debug('Looking up: ' + url);
-        request(url, { json: true }, (err, response, body) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(body);
-            }
-        });
-    });
+export const priceLookup = async (url, endpoint) => {
+    debug('Looking up: ' + url);
+    return request(url, { json: true });
 };
 
 /* Get account balance */
-export const accountLookup = (address, url, endpoint) => {
-    return new Promise((resolve, reject) => {
-        debug(
-            'Looking up ' + address + ' at url: ' + url + address + ' and endpoint - ' + endpoint
-        );
-        request(url + address, { json: true, timeout: 2.5 * 1000 }, (err, response, body) => {
-            if (err) {
-                reject({
-                    success: false,
-                    err
-                });
-            } else {
-                resolve({
-                    success: true,
-                    body
-                });
-            }
-        });
-    });
+export const accountLookup = async (address, url, endpoint) => {
+    debug('Looking up %s at url: %s%s and endpoint - %s', address, url, address, endpoint);
+    try {
+        const body = await request(url + address, { json: true, timeout: 2.5 * 1000 });
+        return {
+            success: true,
+            body
+        };
+    } catch (err) {
+        return {
+            success: false
+        };
+    }
 };

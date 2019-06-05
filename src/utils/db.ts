@@ -15,6 +15,7 @@ import { getID } from './getID';
 import { pullRaw } from './github';
 import * as crypto from 'crypto';
 import coins, { ConfigCoin } from './endpoints';
+import { promisify } from 'util';
 
 const debug = Debug('db');
 const db = new sqlite3.Database('cache.db');
@@ -41,46 +42,23 @@ export const init = async (): Promise<void> => {
     await priceUpdate();
 };
 
+const getPromise = promisify(db.get).bind(db);
+const allPromise = promisify(db.all).bind(db);
+const runPromise = promisify(db.run).bind(db);
+
 export const get = (query, data?) => {
-    return new Promise((resolve, reject) => {
-        debug('GET %s %o', query, data);
-        db.get(query, data, (error, row) => {
-            if (error) {
-                debug('ERROR %s %o', query, data);
-                reject(error);
-            } else {
-                resolve(row);
-            }
-        });
-    });
+    debug('GET %s %o', query, data);
+    return getPromise(query, data);
 };
 
 export const all = (query, data?) => {
-    return new Promise((resolve, reject) => {
-        debug('ALL %s %o', query, data);
-        db.all(query, data, (error, rows) => {
-            if (error) {
-                debug('ERROR %s %o', query, data);
-                reject(error);
-            } else {
-                resolve(rows);
-            }
-        });
-    });
+    debug('ALL %s %o', query, data);
+    return allPromise(query, data);
 };
 
 export const run = (query, data?) => {
-    return new Promise((resolve, reject) => {
-        debug('RUN %s %o', query, data);
-        db.run(query, data, function(error) {
-            if (error) {
-                debug('ERROR %s %o', query, data);
-                reject(error);
-            } else {
-                resolve(this.changes);
-            }
-        });
-    });
+    debug('RUN %s %o', query, data);
+    return runPromise(query, data);
 };
 
 /* Read entries from yaml files and load them into DB object */
