@@ -202,17 +202,18 @@ export const readEntries = async (): Promise<void> => {
                         }
                     })
                 );
-                await Promise.all(
-                    (entry.addresses || []).map(async address => {
-                        console.log(
-                            `22222222222222222222222222222222222222@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@`
+                if (typeof entry.addresses !== 'undefined' && Object.keys(entry.addresses).length) {
+                    await Object.keys(entry.addresses).map(async coin => {
+                        await Promise.all(
+                            entry.addresses[coin].map(async (address, key) => {
+                                await run(
+                                    'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+                                    [address, coin, entry.getID()]
+                                );
+                            })
                         );
-                        await run(
-                            'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
-                            [address, '2', getID(entry.name)]
-                        );
-                    })
-                );
+                    });
+                }
             })
         );
         await run(
