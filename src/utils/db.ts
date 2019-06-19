@@ -133,14 +133,20 @@ export const readEntries = async (): Promise<void> => {
                     })
                 );
                 if (typeof entry.addresses !== 'undefined' && entry.addresses.length) {
-                    await Promise.all(
-                        (entry.addresses || []).map(async address => {
-                            await run(
-                                'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
-                                [address, entry.coin, entry.getID()]
-                            );
-                        })
+                    console.log(
+                        `111111111111111111111111111111111@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@`
                     );
+                    entry.addresses.map(async addr => {
+                        console.log(JSON.stringify(addr));
+                        await Promise.all(
+                            addr.map(async (key, address) => {
+                                await run(
+                                    'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+                                    [address, '1', entry.getID()]
+                                );
+                            })
+                        );
+                    });
                 }
             })
         );
@@ -197,9 +203,12 @@ export const readEntries = async (): Promise<void> => {
                 );
                 await Promise.all(
                     (entry.addresses || []).map(async address => {
+                        console.log(
+                            `22222222222222222222222222222222222222@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@`
+                        );
                         await run(
                             'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
-                            [address, entry.coin, getID(entry.name)]
+                            [address, '2', getID(entry.name)]
                         );
                     })
                 );
@@ -264,9 +273,12 @@ export const readEntries = async (): Promise<void> => {
                 );
                 await Promise.all(
                     (entry.addresses || []).map(async address => {
+                        console.log(
+                            `3333333333333333333333333333333333@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@`
+                        );
                         await run(
                             'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
-                            [address, entry.coin, entry.getID()]
+                            [address, '3', entry.getID()]
                         );
                     })
                 );
