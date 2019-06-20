@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 
 export default async (req: Request, res: Response) => {
     const result = await db.all(
-        "SELECT id,name,url,path,category,subcategory,description,reporter,coin FROM entries WHERE type='scam'"
+        "SELECT e.id,e.name,e.url,e.path,e.category,e.subcategory,e.description,e.reporter,a.address,a.coin FROM entries e WHERE e.type='scam'"
     );
     res.json({
         success: true,

@@ -124,23 +124,30 @@ export const readEntries = async (): Promise<void> => {
                 ]);
                 await Promise.all(
                     addresses.map(async address => {
-                        if (!(address.address in (entry.addresses || []))) {
-                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
-                                address.address,
-                                entry.getID()
-                            ]);
+                        if (
+                            !entry.addresses ||
+                            !(address.coin in entry.addresses) ||
+                            !(address.address in entry.adresses[address.coin])
+                        ) {
+                            await run(
+                                'DELETE FROM addresses WHERE address=? AND coin=? AND entry=?',
+                                [address.address, address.coin, entry.getID()]
+                            );
                         }
                     })
                 );
-                await Promise.all(
-                    (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
-                            address,
-                            entry.coin,
-                            entry.getID()
-                        ]);
-                    })
-                );
+                if (typeof entry.addresses !== 'undefined' && Object.keys(entry.addresses).length) {
+                    await Object.keys(entry.addresses).map(async coin => {
+                        await Promise.all(
+                            entry.addresses[coin].map(async (address, key) => {
+                                await run(
+                                    'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+                                    [address, coin, entry.getID()]
+                                );
+                            })
+                        );
+                    });
+                }
             })
         );
         await run(
@@ -186,7 +193,11 @@ export const readEntries = async (): Promise<void> => {
                 ]);
                 await Promise.all(
                     addresses.map(async address => {
-                        if (!(address.address in (entry.addresses || []))) {
+                        if (
+                            !entry.adresses ||
+                            !(address.coin in entry.adresses) ||
+                            !(address.address in entry.adresses[address.coin])
+                        ) {
                             await run('DELETE FROM addresses WHERE address=? AND entry=?', [
                                 address.address,
                                 getID(entry.name)
@@ -194,15 +205,18 @@ export const readEntries = async (): Promise<void> => {
                         }
                     })
                 );
-                await Promise.all(
-                    (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
-                            address,
-                            entry.coin,
-                            getID(entry.name)
-                        ]);
-                    })
-                );
+                if (typeof entry.addresses !== 'undefined' && Object.keys(entry.addresses).length) {
+                    await Object.keys(entry.addresses).map(async coin => {
+                        await Promise.all(
+                            entry.addresses[coin].map(async address => {
+                                await run(
+                                    'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+                                    [address, coin, getID(entry.name)]
+                                );
+                            })
+                        );
+                    });
+                }
             })
         );
         await run(
@@ -215,73 +229,75 @@ export const readEntries = async (): Promise<void> => {
         await run('COMMIT');
     }
 
-    /* Add etherscamdb_blacklist to cache.db */
-    const etherscamdbFile = await fs.readFile('./data/etherscamdb_blacklist.yaml', 'utf8');
-    const etherscamdbChecksum = crypto
-        .createHash('sha256')
-        .update(etherscamdbFile)
-        .digest('hex');
-    const oldESDBScamsChecksum: any = await get(
-        "SELECT hash from checksums WHERE filename='etherscamdb_blacklist.yaml'"
-    );
-    if (
-        !oldESDBScamsChecksum ||
-        !('hash' in oldESDBScamsChecksum) ||
-        oldESDBScamsChecksum.hash !== etherscamdbChecksum
-    ) {
-        debug('Adding ESDB scams now...');
-        const etherscamdbscams = yaml.safeLoad(etherscamdbFile).map(entry => new Scam(entry));
-        await run('BEGIN TRANSACTION');
-        await Promise.all(
-            etherscamdbscams.map(async entry => {
-                await run(
-                    "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,severity=$severity WHERE id=$id",
-                    {
-                        $id: entry.getID(),
-                        $name: entry.getHostname(),
-                        $url: entry.url,
-                        $hostname: entry.getHostname(),
-                        $path: entry.path,
-                        $category: entry.category,
-                        $subcategory: entry.subcategory,
-                        $description: entry.description,
-                        $reporter: entry.reporter,
-                        $severity: entry.severity
-                    }
-                );
-                const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
-                    entry.getID()
-                ]);
-                await Promise.all(
-                    addresses.map(async address => {
-                        if (!(address.address in (entry.addresses || []))) {
-                            await run('DELETE FROM addresses WHERE address=? AND entry=?', [
-                                address.address,
-                                entry.getID()
-                            ]);
-                        }
-                    })
-                );
-                await Promise.all(
-                    (entry.addresses || []).map(async address => {
-                        await run('INSERT OR IGNORE INTO addresses VALUES (?,?,?)', [
-                            address,
-                            entry.coin,
-                            entry.getID()
-                        ]);
-                    })
-                );
-            })
-        );
-        await run(
-            'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
-            {
-                $filename: 'etherscamdb_blacklist.yaml',
-                $hash: etherscamdbChecksum
-            }
-        );
-        await run('COMMIT');
-    }
+    // /* Add etherscamdb_blacklist to cache.db */
+    // const etherscamdbFile = await fs.readFile('./data/etherscamdb_blacklist.yaml', 'utf8');
+    // const etherscamdbChecksum = crypto
+    //     .createHash('sha256')
+    //     .update(etherscamdbFile)
+    //     .digest('hex');
+    // const oldESDBScamsChecksum: any = await get(
+    //     "SELECT hash from checksums WHERE filename='etherscamdb_blacklist.yaml'"
+    // );
+    // if (
+    //     !oldESDBScamsChecksum ||
+    //     !('hash' in oldESDBScamsChecksum) ||
+    //     oldESDBScamsChecksum.hash !== etherscamdbChecksum
+    // ) {
+    //     debug('Adding ESDB scams now...');
+    //     const etherscamdbscams = yaml.safeLoad(etherscamdbFile).map(entry => new Scam(entry));
+    //     await run('BEGIN TRANSACTION');
+    //     await Promise.all(
+    //         etherscamdbscams.map(async entry => {
+    //             await run(
+    //                 "INSERT INTO entries(id,name,type,url,hostname,featured,path,category,subcategory,description,reporter,severity,updated) VALUES ($id,$name,'scam',$url,$hostname,0,$path,$category,$subcategory,$description,$reporter,$severity,0) ON CONFLICT(id) DO UPDATE SET path=$path,category=$category,subcategory=$subcategory,description=$description,reporter=$reporter,severity=$severity WHERE id=$id",
+    //                 {
+    //                     $id: entry.getID(),
+    //                     $name: entry.getHostname(),
+    //                     $url: entry.url,
+    //                     $hostname: entry.getHostname(),
+    //                     $path: entry.path,
+    //                     $category: entry.category,
+    //                     $subcategory: entry.subcategory,
+    //                     $description: entry.description,
+    //                     $reporter: entry.reporter,
+    //                     $severity: entry.severity
+    //                 }
+    //             );
+    //             const addresses: any = await all('SELECT * FROM addresses WHERE entry=?', [
+    //                 entry.getID()
+    //             ]);
+    //             await Promise.all(
+    //                 addresses.map(async address => {
+    //                     if (!(address.address in (entry.addresses || []))) {
+    //                         await run('DELETE FROM addresses WHERE address=? AND entry=?', [
+    //                             address.address,
+    //                             entry.getID()
+    //                         ]);
+    //                     }
+    //                 })
+    //             );
+    //             await Promise.all(
+    //                 (entry.addresses || []).map(async address => {
+    //                     console.log(
+    //                         `3333333333333333333333333333333333@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@`
+    //                     );
+    //                     await run(
+    //                         'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
+    //                         [address, '3', entry.getID()]
+    //                     );
+    //                 })
+    //             );
+    //         })
+    //     );
+    //     await run(
+    //         'INSERT INTO checksums(filename,hash) VALUES ($filename,$hash) ON CONFLICT(filename) DO UPDATE SET hash=$hash WHERE filename=$filename',
+    //         {
+    //             $filename: 'etherscamdb_blacklist.yaml',
+    //             $hash: etherscamdbChecksum
+    //         }
+    //     );
+    //     await run('COMMIT');
+    // }
 };
 
 export const priceUpdate = async (): Promise<void> => {
