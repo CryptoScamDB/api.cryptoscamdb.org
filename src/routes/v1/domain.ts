@@ -6,7 +6,7 @@ export default async (req: Request, res: Response) => {
         'SELECT e.* FROM entries e WHERE name=?',
         req.params.domain.toLowerCase()
     );
-    if (!entry) {
+    if (!entry || entry.length === 0) {
         res.json({ success: false, message: "Couldn't find requested domain" });
     } else {
         entry[0].addresses = {};
@@ -16,7 +16,7 @@ export default async (req: Request, res: Response) => {
             entry[0].id
         );
 
-        if (!addresses) {
+        if (!addresses || addresses.length === 0) {
             // No addresses associated with domain :(
         } else {
             let addressesByCoin = [];
