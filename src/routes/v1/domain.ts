@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 
 export default async (req: Request, res: Response) => {
     const entry: any = await db.all(
-        'SELECT e.* FROM entries e WHERE name=?',
+        'SELECT e.* FROM entries e WHERE lower(name)=?',
         req.params.domain.toLowerCase()
     );
     if (!entry || entry.length === 0) {
