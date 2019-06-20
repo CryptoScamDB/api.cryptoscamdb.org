@@ -9,7 +9,7 @@ export default async (req: Request, res: Response) => {
     if (!entry || entry.length === 0) {
         res.json({ success: false, message: "Couldn't find requested domain" });
     } else {
-        entry[0].addresses = {};
+        entry[0].addresses = [];
         // Get the associated addresses
         const addresses: any = await db.all(
             'SELECT a.address, a.coin FROM addresses a WHERE a.entry = ?',
