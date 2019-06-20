@@ -194,7 +194,11 @@ export const readEntries = async (): Promise<void> => {
                 ]);
                 await Promise.all(
                     addresses.map(async address => {
-                        if (!(address.address in (entry.addresses || []))) {
+                        if (
+                            !entry.adresses ||
+                            !(address.coin in entry.adresses) ||
+                            !(address.address in entry.adresses[address.coin])
+                        ) {
                             await run('DELETE FROM addresses WHERE address=? AND entry=?', [
                                 address.address,
                                 getID(entry.name)
@@ -205,10 +209,10 @@ export const readEntries = async (): Promise<void> => {
                 if (typeof entry.addresses !== 'undefined' && Object.keys(entry.addresses).length) {
                     await Object.keys(entry.addresses).map(async coin => {
                         await Promise.all(
-                            entry.addresses[coin].map(async (address, key) => {
+                            entry.addresses[coin].map(async address => {
                                 await run(
                                     'INSERT OR IGNORE INTO addresses(address, coin, entry) VALUES (?,?,?)',
-                                    [address, coin, entry.getID()]
+                                    [address, coin, getID(entry.name)]
                                 );
                             })
                         );
