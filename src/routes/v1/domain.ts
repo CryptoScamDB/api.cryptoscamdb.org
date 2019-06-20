@@ -19,7 +19,7 @@ export default async (req: Request, res: Response) => {
         if (!addresses || addresses.length === 0) {
             // No addresses associated with domain :(
         } else {
-            let addressesByCoin = [];
+            const addressesByCoin = [];
             addresses.map(addr => {
                 if (addr.coin in addressesByCoin) {
                     addressesByCoin[addr.coin].push(addr.address);
