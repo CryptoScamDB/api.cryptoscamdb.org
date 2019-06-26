@@ -6,11 +6,11 @@ export default async (req: Request, res: Response) => {
     let limit = 0;
     let skip = 0;
     if (req.query.limit && req.query.limit > 0 && req.query.limit < Number.MAX_SAFE_INTEGER) {
-        limit = parseInt(req.query.limit);
+        limit = parseInt(req.query.limit, 10);
     }
 
     if (req.query.skip && req.query.skip > 0 && req.query.limit < Number.MAX_SAFE_INTEGER) {
-        skip = parseInt(req.query.skip);
+        skip = parseInt(req.query.skip, 10);
     }
 
     const query =
