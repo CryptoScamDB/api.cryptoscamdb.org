@@ -28,7 +28,7 @@ export default async (req: Request, res: Response) => {
                 statuses.length > 0
                     ? statuses.find(en => en.status === 'Inactive').count +
                       statuses.find(en => en.status === 'Offline').count
-                    : 0,
+                    : -1,
             offline: statuses.length > 0 ? statuses.find(en => en.status === 'Offline').count : -1,
             suspended:
                 statuses.length > 0 ? statuses.find(en => en.status === 'Suspended').count : -1,
