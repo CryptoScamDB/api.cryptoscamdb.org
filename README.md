@@ -26,3 +26,5 @@
     - Start development web app with: `npm run start:dev` (recommended)
 	- Start production web app with: `npm run start:prod` (warning: please use a dev instance on first run, for configuration purposes)
 - Navigate to http://localhost:5111 in your browser, and you should be shown a fresh instance of CryptoScamDB :sparkles:
+
+**Remember to clean your cache (located in `data/`) when you go to a new branch!**
