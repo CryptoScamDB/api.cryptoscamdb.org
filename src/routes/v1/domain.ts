@@ -1,5 +1,7 @@
 import * as db from '../../utils/db';
 import { Request, Response } from 'express';
+import generateAbuseReport from '../../utils/abusereport';
+import Scam from '../../classes/scam.class';
 
 export default async (req: Request, res: Response) => {
     const entry: any = await db.all(
@@ -29,6 +31,9 @@ export default async (req: Request, res: Response) => {
             });
             entry[0].addresses = addressesByCoin;
         }
+
+        let objScam = new Scam(entry[0]);
+        entry[0].abusereport = generateAbuseReport(objScam);
 
         res.json({ success: true, result: entry });
     }
