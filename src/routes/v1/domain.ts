@@ -34,7 +34,7 @@ export default async (req: Request, res: Response) => {
             entry[0].addresses = addressesByCoin;
         }
 
-        let objScam = new Scam(entry[0]);
+        const objScam = new Scam(entry[0]);
         entry[0].abusereport = generateAbuseReport(objScam);
 
         entry[0].lookups = {};
