@@ -2,6 +2,8 @@ import * as db from '../../utils/db';
 import { Request, Response } from 'express';
 import generateAbuseReport from '../../utils/abusereport';
 import Scam from '../../classes/scam.class';
+import { getGoogleSafeBrowsing, getURLScan, getVirusTotal } from '../../utils/lookup';
+import config from '../../utils/config';
 
 export default async (req: Request, res: Response) => {
     const entry: any = await db.all(
@@ -34,6 +36,19 @@ export default async (req: Request, res: Response) => {
 
         let objScam = new Scam(entry[0]);
         entry[0].abusereport = generateAbuseReport(objScam);
+
+        entry[0].lookups = {};
+        if (config.apiKeys.Google_SafeBrowsing) {
+            entry[0].lookups.Google_SafeBrowsing = await getGoogleSafeBrowsing(entry[0].url);
+        } else {
+            entry[0].lookups.Google_SafeBrowsing = '';
+        }
+        if (config.apiKeys.VirusTotal) {
+            entry[0].lookups.VirusTotal = await getVirusTotal(entry[0].url);
+        } else {
+            entry[0].lookups.VirusTotal = '';
+        }
+        entry[0].lookups.URLScan = await getURLScan(entry[0].hostname);
 
         res.json({ success: true, result: entry });
     }
