@@ -23,12 +23,15 @@ export default async (req: Request, res: Response) => {
             featured: featured.count,
             addresses: addresses.count,
             ips: ips.count,
-            actives: statuses.find(en => en.status === 'Active').count,
+            actives: statuses.length > 0 ? statuses.find(en => en.status === 'Active').count : -1,
             inactives:
-                statuses.find(en => en.status === 'Inactive').count +
-                statuses.find(en => en.status === 'Offline').count,
-            offline: statuses.find(en => en.status === 'Offline').count,
-            suspended: statuses.find(en => en.status === 'Suspended').count,
+                statuses.length > 0
+                    ? statuses.find(en => en.status === 'Inactive').count +
+                      statuses.find(en => en.status === 'Offline').count
+                    : 0,
+            offline: statuses.length > 0 ? statuses.find(en => en.status === 'Offline').count : -1,
+            suspended:
+                statuses.length > 0 ? statuses.find(en => en.status === 'Suspended').count : -1,
             reporters: await db.all(
                 'SELECT reporter,count(reporter) as count FROM entries WHERE reporter IS NOT NULL GROUP BY reporter'
             ),
