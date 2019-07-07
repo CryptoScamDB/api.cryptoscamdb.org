@@ -43,7 +43,7 @@ export const init = async (): Promise<void> => {
 
 export const get = (query, data?) => {
     return new Promise((resolve, reject) => {
-        debug('GET %s %o', query, data);
+        //debug('GET %s %o', query, data);
         db.get(query, data, (error, row) => {
             if (error) {
                 debug('ERROR %s %o', query, data);
@@ -57,7 +57,7 @@ export const get = (query, data?) => {
 
 export const all = (query, data?) => {
     return new Promise((resolve, reject) => {
-        debug('ALL %s %o', query, data);
+        //debug('ALL %s %o', query, data);
         db.all(query, data, (error, rows) => {
             if (error) {
                 debug('ERROR %s %o', query, data);
@@ -71,7 +71,7 @@ export const all = (query, data?) => {
 
 export const run = (query, data?) => {
     return new Promise((resolve, reject) => {
-        debug('RUN %s %o', query, data);
+        //debug('RUN %s %o', query, data);
         db.run(query, data, function(error) {
             if (error) {
                 debug('ERROR %s %o', query, data);
