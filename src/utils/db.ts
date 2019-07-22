@@ -127,7 +127,10 @@ export const readEntries = async (): Promise<void> => {
                         if (
                             !entry.addresses ||
                             !(address.coin in entry.addresses) ||
-                            !(address.address in entry.adresses[address.coin])
+                            !(
+                                entry.hasOwnProperty(address.coin) &&
+                                address.address in entry.adresses[address.coin]
+                            )
                         ) {
                             await run(
                                 'DELETE FROM addresses WHERE address=? AND coin=? AND entry=?',
