@@ -63,7 +63,7 @@
     "express": "4.16.4",
     "flat": "4.1.0",
     "fs-extra": "7.0.1",
-    "github-api": "3.0.0",
+    "github-api": "3.3.0",
     "helmet": "3.15.0",
     "js-yaml": "3.12.1",
     "octonode": "0.9.5",
