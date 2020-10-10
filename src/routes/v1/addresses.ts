@@ -2,7 +2,7 @@ import * as db from '../../utils/db';
 import { Request, Response } from 'express';
 
 export default async (req: Request, res: Response) => {
-    let query = [
+    const query = [
         'SELECT entries.*, addresses.address FROM addresses LEFT JOIN entries ON entries.id = addresses.entry'
     ];
     if (req.query.ticker) {
