@@ -34,16 +34,16 @@ export default async (req: Request, res: Response) => {
             entry[0].addresses = addressesByCoin;
         }
 
-        const objScam = new Scam(entry[0]);
-        entry[0].abusereport = generateAbuseReport(objScam);
+        //const objScam = new Scam(entry[0]);
+        //entry[0].abusereport = generateAbuseReport(objScam);
 
         entry[0].lookups = {};
-        if (config.apiKeys.Google_SafeBrowsing) {
+        if (false && config.apiKeys.Google_SafeBrowsing) {
             entry[0].lookups.Google_SafeBrowsing = await getGoogleSafeBrowsing(entry[0].url);
         } else {
             entry[0].lookups.Google_SafeBrowsing = '';
         }
-        if (config.apiKeys.VirusTotal) {
+        if (false && config.apiKeys.VirusTotal) {
             entry[0].lookups.VirusTotal = await getVirusTotal(entry[0].url);
         } else {
             entry[0].lookups.VirusTotal = '';
