@@ -16,12 +16,12 @@ describe('regex', function() {
         .slow(2000)
         .timeout(25000);
 
-    it('should correctly parse ETC addresses', async () => {
-        const result = await reg.testCoinType('0x9f5304DA62A5408416Ea58A17a92611019bD5ce3');
-        expect(result.ticker).to.equal('ETC');
-    })
-        .slow(2000)
-        .timeout(25000);
+    // it('should correctly parse ETC addresses', async () => {
+    //     const result = await reg.testCoinType('0x9f5304DA62A5408416Ea58A17a92611019bD5ce3');
+    //     expect(result.ticker).to.equal('ETC');
+    // })
+    //     .slow(2000)
+    //     .timeout(25000);
 
     it('should correctly parse BTC addresses', async () => {
         const result = await reg.testCoinType('1DEP8i3QJCsomS4BSMY2RpU1upv62aGvhD');
