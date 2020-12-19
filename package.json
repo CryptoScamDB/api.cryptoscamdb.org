@@ -61,7 +61,7 @@
     "eth-phishing-detect": "1.1.13",
     "ethereum-ens": "0.7.4",
     "express": "4.16.4",
-    "flat": "4.1.0",
+    "flat": "5.0.0",
     "fs-extra": "7.0.1",
     "github-api": "3.0.0",
     "helmet": "3.15.0",
