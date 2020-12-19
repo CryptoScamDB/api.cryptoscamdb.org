@@ -56,7 +56,7 @@
     "cross-env": "5.2.0",
     "dateformat": "3.0.3",
     "debug": "4.1.0",
-    "download": "7.1.0",
+    "download": "8.0.0",
     "esdb-categorize": "0.0.5",
     "eth-phishing-detect": "1.1.13",
     "ethereum-ens": "0.7.4",
